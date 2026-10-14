@@ -1,0 +1,798 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inside Memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --busy:#B87410; --busy2:#2F6FDB; --new:#2E8B57; --frag:#C0392B; --ok:#2E8B57; --bad:#C0392B;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --busy:#E2A23C; --busy2:#6C9BF0; --new:#4FB57D; --frag:#E86A5C; --ok:#4FB57D; --bad:#E86A5C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --busy:#E2A23C; --busy2:#6C9BF0; --new:#4FB57D; --frag:#E86A5C; --ok:#4FB57D; --bad:#E86A5C;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.1;margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:54ch}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.sw{width:14px;height:14px;border-radius:3px;flex:none}
+.hatch{background:repeating-linear-gradient(45deg,var(--frag) 0 4px,transparent 4px 8px)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:1.05rem}
+nav button span{font-size:.82rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--busy2);outline-offset:2px}
+.focus{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-weight:700}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.lab[hidden]{display:none!important}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px}
+@media (max-width:820px){.lab{grid-template-columns:1fr}}
+.intro h2{font-size:1.7rem;font-weight:800;margin-bottom:10px}
+.intro p{margin:0 0 12px;max-width:44ch}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:12px 14px;border-radius:0 8px 8px 0}
+.note{font-size:.92rem;color:var(--muted)}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.btn{font:inherit;font-weight:700;font-size:.95rem;padding:9px 14px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:5px 10px;font-size:.88rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.msg{min-height:1.5em;font-weight:700;margin:10px 0 0}
+.msg.bad{color:var(--bad)} .msg.ok{color:var(--ok)}
+label{font-size:.95rem}
+select{font:inherit;padding:5px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+input[type=range]{accent-color:var(--busy2);vertical-align:middle;width:min(320px,100%)}
+h3{margin:14px 0 6px;font-size:1rem}
+/* memory strip */
+.strip{display:flex;height:76px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--soft)}
+.blk{position:relative;min-width:30px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:.78rem;line-height:1.15;padding:2px;border-right:2px solid var(--panel);overflow:hidden;cursor:default;font:inherit;font-size:.78rem;border-top:0;border-bottom:0;border-left:0;color:var(--ink);background:var(--soft)}
+.blk:last-child{border-right:0}
+.blk b{font-size:.85rem}
+.blk.busy{background:var(--busy);color:#fff}
+.blk.busy.alt{background:var(--busy2)}
+.blk.new{background:var(--new);color:#fff}
+.blk.click{cursor:pointer}
+.blk.click:hover{outline:3px solid var(--ink);outline-offset:-3px}
+.blk .fr{position:absolute;right:0;top:0;bottom:0}
+.addr{display:flex;font-size:.72rem;color:var(--muted);margin-top:2px}
+.addr span{min-width:30px;overflow:hidden;white-space:nowrap}
+.cards{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.card{border:2px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:700;font-size:.92rem;background:var(--bg)}
+.card.cur{border-color:var(--ink);background:var(--panel)}
+.card.done{opacity:.45}
+.card.fail{border-color:var(--bad);color:var(--bad)}
+table.t{border-collapse:collapse;width:100%;font-size:.92rem;margin:4px 0 10px}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+table.t th{font-size:.82rem;color:var(--muted);font-weight:700}
+.tables{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:520px){.tables{grid-template-columns:1fr}}
+.stat{display:flex;flex-wrap:wrap;gap:16px;font-size:.95rem;margin-top:10px}
+.log{margin-top:10px;font-size:.92rem;color:var(--muted);max-height:170px;overflow:auto;border-top:1px solid var(--line);padding-top:6px}
+.log div{padding:2px 0}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* interactive video */
+.video{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:12px 14px;margin:0 0 18px}
+.vtop{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.vtop b{font-family:"Bricolage Grotesque",sans-serif;font-size:1.1rem}
+.vctl{display:flex;gap:6px;flex-wrap:wrap}
+.vlab{font-size:.8rem;color:var(--muted);margin:8px 0 2px;font-weight:700}
+.vstrip{display:flex;height:70px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--soft)}
+.vb{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+  font-size:.8rem;line-height:1.15;border-right:2px solid var(--panel);overflow:hidden;color:var(--ink);background:var(--soft);
+  transition:flex-grow .7s ease,background-color .4s,box-shadow .4s,opacity .4s}
+.vb:last-child{border-right:0}
+.vb b{font-size:.86rem;white-space:nowrap}
+.vb small{font-size:.72rem;opacity:.85;white-space:nowrap}
+.vb.busy{background:var(--busy);color:#fff}
+.vb.busy b,.vb.busy small,.vb.new b,.vb.new small{text-shadow:0 0 3px rgba(0,0,0,.55)}
+.vb.new{background:var(--new);color:#fff}
+.vb.hl{box-shadow:inset 0 0 0 4px var(--busy2)}
+.vb.bad{box-shadow:inset 0 0 0 4px var(--frag)}
+.vb.ghost{opacity:.35}
+.vb .fr{position:absolute;right:0;top:0;bottom:0;transition:width .7s}
+.vb > *{position:relative;z-index:1}
+.vcap{margin:10px 0 0;font-size:1.02rem;min-height:2.8em}
+.vnote{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88rem;background:var(--soft);border-radius:8px;padding:6px 10px;margin-top:8px}
+.vask{display:none;margin-top:10px;border:2px dashed var(--busy2);border-radius:10px;padding:10px 12px;background:color-mix(in srgb,var(--busy2) 8%,transparent)}
+.vask.on{display:block}
+.vask p{margin:0 0 8px;font-weight:700}
+.vdots{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}
+.vdots button{width:22px;height:8px;border-radius:4px;border:0;background:var(--line);cursor:pointer;padding:0}
+.vdots button.done{background:var(--muted)}
+.vdots button.cur{background:var(--ink)}
+.vdots button.q{background:var(--busy2)}
+@media (prefers-reduced-motion: reduce){.vb,.vb .fr{transition:none}}
+
+/* real-life street scenes */
+.vmode{display:inline-block;font-size:.78rem;font-weight:700;padding:2px 9px;border-radius:999px;margin-left:8px;vertical-align:middle;color:#fff}
+.vmode.real{background:var(--busy)} .vmode.comp{background:var(--busy2)}
+.vlegend{display:none;flex-wrap:wrap;gap:6px 14px;font-size:.84rem;color:var(--muted);margin:2px 0 4px}
+.vlegend.on{display:flex}
+.vlegend b{color:var(--ink)}
+.vqueue{display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:.85rem;margin:6px 0 2px}
+.vqueue.on{display:flex}
+.qcar{display:inline-flex;align-items:center;justify-content:center;height:24px;padding:0 10px;border-radius:9px 12px 5px 5px;background:var(--busy);color:#fff;font-weight:700;font-size:.78rem;position:relative;margin-bottom:5px}
+.qcar::after{content:'';position:absolute;left:0;right:0;bottom:-6px;height:10px;background:radial-gradient(circle at 20% 50%,#151515 0 4px,transparent 5px),radial-gradient(circle at 80% 50%,#151515 0 4px,transparent 5px)}
+.vstrip.park{height:96px;background:#4A4F57;border-color:#2B2F35;border-bottom:6px solid #B9B4A8}
+.vstrip.park .vb{background:transparent;color:#F2F2F2;border-right:2px dashed rgba(255,255,255,.22);justify-content:flex-end;padding:0 0 4px}
+.vstrip.park .vb.bay{border-right:3px solid #F5F5F5}
+.vstrip.park .vb:last-child{border-right:0}
+.vstrip.park .vb.busy,.vstrip.park .vb.new{background:transparent}
+.vstrip.park .vb small{color:#ECECEC;text-shadow:none;font-size:.72rem}
+.vstrip.park .vb .car{align-self:flex-start;margin:0 0 12px 3%;height:38px;border-radius:12px 18px 6px 6px;position:relative;display:flex;align-items:center;justify-content:center;transition:width .7s;background:var(--busy)}
+.vstrip.park .vb.new .car{background:var(--new)}
+.vstrip.park .vb.parked .car{background:#8A8F98}
+.vstrip.park .vb .car::before{content:'';position:absolute;top:4px;left:30%;width:40%;height:12px;background:rgba(220,235,255,.85);border-radius:6px 9px 2px 2px}
+.vstrip.park .vb .car::after{content:'';position:absolute;left:0;right:0;bottom:-8px;height:14px;background:radial-gradient(circle at 18% 50%,#151515 0 6px,transparent 7px),radial-gradient(circle at 82% 50%,#151515 0 6px,transparent 7px)}
+.vstrip.park .vb .car b{position:relative;z-index:1;margin-top:12px;font-size:.78rem;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
+.vstrip.park .vb .left{position:absolute;right:3px;top:14px;bottom:22px;border:2px dashed #FF8A7A;border-radius:6px}
+.vstrip.park .vb.hl{box-shadow:inset 0 0 0 4px #7FB0FF}
+.vstrip.park .vb.bad{box-shadow:inset 0 0 0 4px #FF6B5B}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Inside Memory</h1>
+    <p>Chapter 2, hands on. Each tab is a small experiment with its own numbers, different from the tutorial. Learn the method here, then solve the real question on paper.</p>
+  </div>
+  <div class="legend" aria-label="Colour key">
+    <span class="chip"><i class="sw" style="background:var(--busy)"></i>Process</span>
+    <span class="chip"><i class="sw" style="background:var(--soft);border:1px solid var(--line)"></i>Free</span>
+    <span class="chip"><i class="sw hatch"></i>Wasted inside a partition</span>
+    <span class="chip"><i class="sw" style="background:var(--new)"></i>Just placed</span>
+  </div>
+</header>
+
+<nav role="tablist" aria-label="Tutorial 2 questions">
+  <button role="tab" aria-selected="true" data-lab="q1"><b>Q1</b><span>Leftover space</span></button>
+  <button role="tab" aria-selected="false" data-lab="q2"><b>Q2</b><span>Fixed vs dynamic</span></button>
+  <button role="tab" aria-selected="false" data-lab="q3"><b>Q3</b><span>Fit, fixed</span></button>
+  <button role="tab" aria-selected="false" data-lab="q4"><b>Q4</b><span>Inside or between</span></button>
+  <button role="tab" aria-selected="false" data-lab="q5"><b>Q5</b><span>Compaction</span></button>
+  <button role="tab" aria-selected="false" data-lab="q6"><b>Q6</b><span>Two schemes</span></button>
+  <button role="tab" aria-selected="false" data-lab="q7"><b>Q7</b><span>Fit, dynamic</span></button>
+  <button role="tab" aria-selected="false" data-lab="q8"><b>Q8</b><span>Freeing blocks</span></button>
+  <button role="tab" aria-selected="false" data-lab="q9"><b>Q9</b><span>Free &amp; busy lists</span></button>
+  <button role="tab" aria-selected="false" data-lab="q10"><b>Q10</b><span>Relocation</span></button>
+</nav>
+<p class="focus" id="focus"></p>
+<div class="pager" id="pager"></div>
+<section class="video" id="video" aria-label="Interactive video">
+  <div class="vtop"><div><b id="vTitle"></b><span class="vmode" id="vMode"></span></div>
+    <div class="vctl"><button class="btn sm" id="vPlay">Play</button><button class="btn ghost sm" id="vRestart">Restart</button></div></div>
+  <div class="vlegend" id="vLegend"><span><b>car</b> = process / job</span><span><b>painted bay</b> = fixed partition</span><span><b>empty curb</b> = free memory</span><span><b>parking guard</b> = memory manager</span><span><b>cars at the gate</b> = job queue</span></div><div class="vqueue" id="vQueue"></div><div class="vlab" id="vL1"></div><div class="vstrip" id="vS1"></div>
+  <div id="vW2"><div class="vlab" id="vL2"></div><div class="vstrip" id="vS2"></div></div>
+  <div class="vnote" id="vNote"></div>
+  <p class="vcap" id="vCap" aria-live="polite"></p>
+  <div class="vask" id="vAsk"><p id="vQ"></p><button class="btn sm" id="vGo">Continue</button> <span class="note">Discuss with your partner first.</span></div>
+  <div class="vdots" id="vDots" aria-label="Video steps"></div>
+</section>
+
+<!-- Q1 -->
+<section class="lab" id="q1">
+  <div class="intro">
+    <h2>Leftover space in a partition</h2>
+    <p>A fixed partition of <b>40 K</b> receives one job. Move the slider to change the job size and watch what is left over.</p>
+    <p>Then switch the unit: does "1 K" mean 1000 or 1024 bytes? It changes every number.</p>
+    <p class="think"><strong>Think:</strong> if you only know the leftover, how do you get back to the job size? Can another job use that leftover?</p>
+  </div>
+  <div class="stage">
+    <div class="row">
+      <label>1 K = <select id="q1unit"><option value="1024">1024 bytes</option><option value="1000">1000 bytes</option></select></label>
+    </div>
+    <div class="row"><label>Job size <input type="range" id="q1job" min="10000" max="40000" step="256" value="30000"></label></div>
+    <div class="strip" id="q1strip"></div>
+    <div class="stat" id="q1stat"></div>
+  </div>
+</section>
+
+<!-- Q2 -->
+<section class="lab" id="q2" hidden>
+  <div class="intro">
+    <h2>Fixed vs dynamic</h2>
+    <p>The same 120 KB of memory, managed two ways. On top: four fixed partitions of 30 KB. Below: dynamic blocks cut to the exact size. Load the jobs one by one.</p>
+    <p class="think"><strong>Think:</strong> which scheme refuses a job? Where is memory wasted in each one? Which is simpler for the OS?</p>
+  </div>
+  <div class="stage" id="q2stage"></div>
+</section>
+
+<!-- Q3 -->
+<section class="lab" id="q3" hidden>
+  <div class="intro">
+    <h2>First-fit and best-fit, fixed partitions</h2>
+    <p>You are the memory manager. For each job, <b>click the partition</b> the chosen algorithm would pick. If none fits, say so.</p>
+    <p class="note">First-fit: the first partition, from the top of the list, that is big enough. Best-fit: the smallest partition that is big enough.</p>
+    <p class="think"><strong>Think:</strong> which algorithm loads every job here? Which one wastes less memory?</p>
+  </div>
+  <div class="stage">
+    <div class="row">
+      <label>Algorithm <select id="q3alg"><option value="ff">First-fit</option><option value="bf">Best-fit</option></select></label>
+      <button class="btn ghost sm" id="q3reset">Restart</button>
+    </div>
+    <div class="cards" id="q3jobs"></div>
+    <div class="strip" id="q3strip"></div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost sm" id="q3none">No partition fits</button></div>
+    <p class="msg" id="q3msg" role="status"></p>
+    <div class="stat" id="q3stat"></div>
+  </div>
+</section>
+
+<!-- Q4 -->
+<section class="lab" id="q4" hidden>
+  <div class="intro">
+    <h2>Inside or between?</h2>
+    <p>Two memories, both with wasted space. Click each red or grey area to see where it sits.</p>
+    <p class="think"><strong>Think:</strong> give a name to each kind of waste. Which kind could be fixed by moving processes around?</p>
+  </div>
+  <div class="stage">
+    <h3>Memory 1: fixed partitions of 30 KB</h3>
+    <div class="strip" id="q4a"></div>
+    <h3>Memory 2: dynamic blocks, after some processes ended</h3>
+    <div class="strip" id="q4b"></div>
+    <p class="msg" id="q4msg" role="status"></p>
+  </div>
+</section>
+
+<!-- Q5 -->
+<section class="lab" id="q5" hidden>
+  <div class="intro">
+    <h2>Why compact?</h2>
+    <p>A new process needs <b>100 KB</b> in one piece. Count the free space, try to load it, then compact.</p>
+    <p class="think"><strong>Think:</strong> did compaction create new memory? What did it change?</p>
+  </div>
+  <div class="stage">
+    <div class="strip" id="q5strip"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="q5load">Load the 100 KB process</button>
+      <button class="btn ghost" id="q5comp">Compact memory</button>
+      <button class="btn ghost sm" id="q5reset">Restart</button>
+    </div>
+    <p class="msg" id="q5msg" role="status"></p>
+  </div>
+</section>
+
+<!-- Q6 -->
+<section class="lab" id="q6" hidden>
+  <div class="intro">
+    <h2>Two schemes, one memory</h2>
+    <p>160 KB for user processes. Scheme A: four fixed partitions of 40 KB. Scheme B: dynamic blocks. Load the processes in arrival order and compare the counters.</p>
+    <p class="think"><strong>Think:</strong> a scheme can have a lot of free memory and still refuse a process. Why?</p>
+  </div>
+  <div class="stage" id="q6stage"></div>
+</section>
+
+<!-- Q7 -->
+<section class="lab" id="q7" hidden>
+  <div class="intro">
+    <h2>First-fit and best-fit, dynamic blocks</h2>
+    <p>Now the free blocks can be <b>split</b>: the process takes what it needs and the rest becomes a smaller free block. Click the free block the algorithm would choose.</p>
+    <p class="note">Grey blocks are free; coloured blocks are already in use. Blocks are in address order, left to right.</p>
+    <p class="think"><strong>Think:</strong> at the end, is the total free memory different between the two algorithms? What about the size of the biggest free block?</p>
+  </div>
+  <div class="stage">
+    <div class="row">
+      <label>Algorithm <select id="q7alg"><option value="ff">First-fit</option><option value="bf">Best-fit</option></select></label>
+      <button class="btn ghost sm" id="q7reset">Restart</button>
+    </div>
+    <div class="cards" id="q7jobs"></div>
+    <div class="strip" id="q7strip"></div>
+    <div class="addr" id="q7addr"></div>
+    <p class="msg" id="q7msg" role="status"></p>
+    <div class="stat" id="q7stat"></div>
+  </div>
+</section>
+
+<!-- Q8 -->
+<section class="lab" id="q8" hidden>
+  <div class="intro">
+    <h2>Freeing blocks</h2>
+    <p>Click a process to end it. Its block becomes free and joins any free neighbour, left or right.</p>
+    <p class="think"><strong>Think:</strong> how many different situations exist, depending on the neighbours? How do you get the start address and size of the new free block?</p>
+  </div>
+  <div class="stage">
+    <div class="strip" id="q8strip"></div>
+    <div class="addr" id="q8addr"></div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost sm" id="q8reset">Restart</button></div>
+    <div class="log" id="q8log" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- Q9 -->
+<section class="lab" id="q9" hidden>
+  <div class="intro">
+    <h2>Keeping the free and busy lists</h2>
+    <p>The memory manager keeps two lists. Step through the operations and watch both lists change: blocks are split on allocation and merged on release.</p>
+    <p class="note">Before each step, write down what you expect. Then click Next.</p>
+    <p class="think"><strong>Think:</strong> after a release, which algorithm leaves the biggest free block for a large process?</p>
+  </div>
+  <div class="stage">
+    <div class="row">
+      <label>Algorithm <select id="q9alg"><option value="ff">First-fit</option><option value="bf">Best-fit</option></select></label>
+      <button class="btn" id="q9next">Next step</button>
+      <button class="btn ghost sm" id="q9reset">Restart</button>
+    </div>
+    <div class="cards" id="q9ops"></div>
+    <div class="strip" id="q9strip"></div>
+    <div class="addr" id="q9addr"></div>
+    <div class="tables">
+      <div><h3>Free list</h3><table class="t" id="q9free"></table></div>
+      <div><h3>Busy list</h3><table class="t" id="q9busy"></table></div>
+    </div>
+    <p class="msg" id="q9msg" role="status"></p>
+  </div>
+</section>
+
+<!-- Q10 -->
+<section class="lab" id="q10" hidden>
+  <div class="intro">
+    <h2>Compaction with relocation</h2>
+    <p>A process needs <b>400 KB</b> in one piece. Compact the memory: every process slides down toward address 200, and the OS records how far each one moved.</p>
+    <p class="think"><strong>Think:</strong> why must the OS know how far each process moved? Why is the adjustment negative?</p>
+  </div>
+  <div class="stage">
+    <div class="strip" id="q10strip"></div>
+    <div class="addr" id="q10addr"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="q10load">Load the 400 KB process</button>
+      <button class="btn ghost" id="q10comp">Compact</button>
+      <button class="btn ghost sm" id="q10reset">Restart</button>
+    </div>
+    <p class="msg" id="q10msg" role="status"></p>
+    <table class="t" id="q10tab"></table>
+  </div>
+</section>
+
+<footer>Operating Systems tutorial companion, Chapter 2. Experiments, not answers: the numbers here are not the tutorial's.</footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+// ---------- tabs ----------
+const TABS=$$('nav button');
+function showQ(n,scroll){
+  const b=TABS[n-1];
+  TABS.forEach(x=>x.setAttribute('aria-selected',x===b));
+  $$('.lab').forEach(s=>s.hidden=s.id!==b.dataset.lab);
+  $('#focus').textContent=`Question ${n}: ${b.querySelector('span').textContent}`;
+  $('#pager').innerHTML=(n>1?`<button class="btn ghost" id="prevQ">Previous: Q${n-1}</button>`:'<span></span>')+(n<TABS.length?`<button class="btn" id="nextQ">Next: Q${n+1}</button>`:'');
+  if(n>1) $('#prevQ').onclick=()=>showQ(n-1,true);
+  if(n<TABS.length) $('#nextQ').onclick=()=>showQ(n+1,true);
+  if(scroll){const top=$('#focus').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top});}
+}
+TABS.forEach((b,i)=>b.addEventListener('click',()=>showQ(i+1,true)));
+showQ(1,false);
+
+// ---------- strip renderer ----------
+// block: {start,size,name,busy,used?,cls?}
+function drawStrip(el,blocks,opt={}){
+  el.innerHTML='';
+  blocks.forEach((b,i)=>{
+    const d=document.createElement(opt.click&&opt.click(b,i)?'button':'div');
+    d.className='blk'+(b.busy?' busy':'')+(b.cls?' '+b.cls:'')+(opt.click&&opt.click(b,i)?' click':'');
+    d.style.flex=`${b.size} 1 0`;
+    let inner=`<b>${b.name||'free'}</b><span>${b.size} KB</span>`;
+    if(b.used!=null && b.used<b.size){
+      const w=(b.size-b.used)/b.size*100;
+      inner=`<b>${b.name}</b><span>${b.used} of ${b.size}</span><i class="fr hatch" style="width:${w}%"></i>`;
+    }
+    d.innerHTML=inner;
+    d.setAttribute('aria-label',`${b.name||'Free block'}, ${b.size} KB${b.start!=null?', starts at '+b.start:''}`);
+    if(opt.click&&opt.click(b,i)) d.onclick=()=>opt.onClick(b,i);
+    el.append(d);
+  });
+}
+function drawAddr(el,blocks){
+  if(!el) return;
+  el.innerHTML=blocks.map(b=>`<span style="flex:${b.size} 1 0">${b.start}</span>`).join('');
+}
+function mergeFree(bl){
+  const out=[];
+  bl.forEach(b=>{const p=out[out.length-1]; if(p&&!p.busy&&!b.busy){p.size+=b.size;} else out.push({...b});});
+  return out;
+}
+function pickDynamic(bl,size,alg){
+  let best=-1;
+  bl.forEach((b,i)=>{ if(b.busy||b.size<size) return;
+    if(best<0) best=i; else if(alg==='bf'&&b.size<bl[best].size) best=i; });
+  return best;
+}
+function placeDynamic(bl,i,size,name){
+  const b=bl[i]; const parts=[{start:b.start,size,name,busy:true,cls:'new'}];
+  if(b.size>size) parts.push({start:b.start+size,size:b.size-size,busy:false});
+  bl.splice(i,1,...parts);
+}
+
+// ---------- Q1 ----------
+function q1(){
+  const unit=+$('#q1unit').value, part=40*unit, job=Math.min(+$('#q1job').value,part);
+  $('#q1job').max=part;
+  const frag=part-job;
+  $('#q1strip').innerHTML=`<div class="blk busy" style="flex:${job} 1 0"><b>Job</b><span>${job.toLocaleString()} B</span></div><div class="blk hatch" style="flex:${Math.max(frag,1)} 1 0;color:var(--ink)"><b>Leftover</b><span>${frag.toLocaleString()} B</span></div>`;
+  $('#q1stat').innerHTML=`<span>Partition: 40 × ${unit} = <b>${part.toLocaleString()}</b> bytes</span><span>Job: <b>${job.toLocaleString()}</b> bytes</span><span>Leftover: <b>${frag.toLocaleString()}</b> bytes</span>`;
+}
+$('#q1unit').onchange=q1; $('#q1job').oninput=q1; q1();
+
+// ---------- Q2 & Q6: compare schemes ----------
+function compareLab(stageId,total,nParts,jobs){
+  const stage=$('#'+stageId); const ps=total/nParts;
+  stage.innerHTML=`<div class="cards"></div>
+   <h3>Fixed partitions (${nParts} × ${ps} KB)</h3><div class="strip fx"></div><div class="stat fxs"></div>
+   <h3>Dynamic blocks</h3><div class="strip dy"></div><div class="stat dys"></div>
+   <div class="row" style="margin-top:12px"><button class="btn nx">Load next job</button><button class="btn ghost sm rs">Restart</button></div>
+   <p class="msg" role="status"></p>`;
+  let k, fixed, dyn, st;
+  const cards=stage.querySelector('.cards'), msg=stage.querySelector('.msg');
+  function reset(){ k=0; fixed=Array.from({length:nParts},(_,i)=>({name:'P'+(i+1),size:ps,busy:false}));
+    dyn=[{start:0,size:total,busy:false}]; st=jobs.map(()=>['','']); msg.textContent=''; draw(); }
+  function draw(){
+    cards.innerHTML=jobs.map((j,i)=>`<span class="card ${i===k?'cur':''} ${i<k?'done':''}">${j.n}: ${j.s} KB${st[i][0]?` · fixed ${st[i][0]} · dynamic ${st[i][1]}`:''}</span>`).join('');
+    drawStrip(stage.querySelector('.fx'),fixed.map(p=>p.busy?{...p,name:p.job,used:p.used,busy:true}:{...p,name:'free'}));
+    drawStrip(stage.querySelector('.dy'),dyn.map(b=>({...b,cls:''})));
+    const used=fixed.filter(p=>p.busy), inFrag=used.reduce((a,p)=>a+p.size-p.used,0);
+    stage.querySelector('.fxs').innerHTML=`<span>Loaded: <b>${used.length}</b></span><span>Wasted inside partitions: <b>${inFrag} KB</b></span><span>Free partitions: <b>${fixed.filter(p=>!p.busy).length*ps} KB</b></span>`;
+    const dUsed=dyn.filter(b=>b.busy).reduce((a,b)=>a+b.size,0);
+    stage.querySelector('.dys').innerHTML=`<span>Loaded: <b>${dyn.filter(b=>b.busy).length}</b></span><span>Used: <b>${dUsed} KB</b></span><span>Free: <b>${total-dUsed} KB</b></span>`;
+    stage.querySelector('.nx').disabled=k>=jobs.length;
+  }
+  stage.querySelector('.nx').onclick=()=>{
+    const j=jobs[k];
+    const p=fixed.find(p=>!p.busy&&p.size>=j.s);
+    if(p){p.busy=true;p.job=j.n;p.used=j.s;st[k][0]='✓';} else st[k][0]='✗';
+    const i=pickDynamic(dyn,j.s,'ff'); if(i>=0){placeDynamic(dyn,i,j.s,j.n);dyn.forEach(b=>{if(b.name!==j.n)b.cls=''});st[k][1]='✓';} else st[k][1]='✗';
+    msg.textContent=`${j.n} (${j.s} KB): fixed ${p?'loaded':'refused, no partition is big enough'}; dynamic ${i>=0?'loaded':'refused'}.`;
+    msg.className='msg '+(p?'':'bad'); k++; draw();
+  };
+  stage.querySelector('.rs').onclick=reset; reset();
+}
+compareLab('q2stage',120,4,[{n:'J1',s:18},{n:'J2',s:40},{n:'J3',s:25},{n:'J4',s:12}]);
+compareLab('q6stage',160,4,[{n:'P1',s:36},{n:'P2',s:55},{n:'P3',s:20}]);
+
+// ---------- Q3: predict fixed fit ----------
+const Q3P=[{name:'A',size:25},{name:'B',size:40},{name:'C',size:10},{name:'D',size:35}];
+const Q3J=[{n:'J1',s:8},{n:'J2',s:30},{n:'J3',s:22},{n:'J4',s:35}];
+let q3k,q3parts,q3res;
+function q3expected(){
+  const j=Q3J[q3k], alg=$('#q3alg').value; let best=-1;
+  q3parts.forEach((p,i)=>{ if(p.job||p.size<j.s) return; if(best<0) best=i; else if(alg==='bf'&&p.size<q3parts[best].size) best=i; });
+  return best;
+}
+function q3draw(){
+  $('#q3jobs').innerHTML=Q3J.map((j,i)=>`<span class="card ${i===q3k?'cur':''} ${i<q3k&&q3res[i]!=='✗'?'done':''} ${q3res[i]==='✗'?'fail':''}">${j.n}: ${j.s} K${q3res[i]?' → '+q3res[i]:''}</span>`).join('');
+  drawStrip($('#q3strip'),q3parts.map(p=>p.job?{name:`${p.name}: ${p.job}`,size:p.size,used:p.used,busy:true}:{name:`${p.name} (free)`,size:p.size}),
+    {click:(b,i)=>q3k<Q3J.length&&!q3parts[i].job,onClick:(b,i)=>q3try(i)});
+  $('#q3none').disabled=q3k>=Q3J.length;
+  if(q3k>=Q3J.length){ const w=q3parts.filter(p=>p.job).reduce((a,p)=>a+p.size-p.used,0);
+    $('#q3stat').innerHTML=`<span>Jobs loaded: <b>${q3res.filter(r=>r!=='✗').length} of ${Q3J.length}</b></span><span>Wasted inside partitions: <b>${w} K</b></span>`; }
+  else $('#q3stat').innerHTML='';
+}
+function q3try(i){
+  const e=q3expected(), j=Q3J[q3k], alg=$('#q3alg').value==='ff'?'First-fit':'Best-fit';
+  if(i===e){ q3parts[i].job=j.n; q3parts[i].used=j.s; q3res[q3k]=q3parts[i].name;
+    $('#q3msg').textContent=`Correct: ${j.n} goes into partition ${q3parts[i].name}.`; $('#q3msg').className='msg ok'; q3k++; }
+  else if(e<0){ $('#q3msg').textContent=`Look again: is any free partition at least ${j.s} K?`; $('#q3msg').className='msg bad'; }
+  else { $('#q3msg').textContent=(q3parts[i].size<j.s?`Too small: ${j.s} K does not fit in ${q3parts[i].size} K.`:`${alg} would not pick this one. `+($('#q3alg').value==='ff'?'Check the partitions in order, from the left.':'Is there a smaller partition that still fits?')); $('#q3msg').className='msg bad'; }
+  q3draw();
+}
+$('#q3none').onclick=()=>{ const e=q3expected(), j=Q3J[q3k];
+  if(e<0){ q3res[q3k]='✗'; $('#q3msg').textContent=`Right: ${j.n} cannot be loaded now. It must wait.`; $('#q3msg').className='msg ok'; q3k++; }
+  else { $('#q3msg').textContent='There is still a free partition big enough. Look again.'; $('#q3msg').className='msg bad'; }
+  q3draw(); };
+function q3reset(){ q3k=0; q3parts=Q3P.map(p=>({...p})); q3res=[]; $('#q3msg').textContent=''; q3draw(); }
+$('#q3reset').onclick=q3reset; $('#q3alg').onchange=q3reset; q3reset();
+
+// ---------- Q4 ----------
+const q4a=[{name:'J1',size:30,used:22,busy:true},{name:'J2',size:30,used:28,busy:true},{name:'J3',size:30,used:15,busy:true},{name:'J4',size:30,used:30,busy:true}];
+drawStrip($('#q4a'),q4a,{click:b=>b.used<b.size,onClick:b=>{$('#q4msg').textContent=`The ${b.size-b.used} KB inside ${b.name}'s partition belongs to ${b.name}, but ${b.name} does not use it. No other job can use it either.`;$('#q4msg').className='msg';}});
+const q4b=[{name:'P1',size:25,busy:true},{size:10},{name:'P2',size:30,busy:true},{size:15},{name:'P3',size:20,busy:true},{size:12}];
+drawStrip($('#q4b'),q4b,{click:b=>!b.busy,onClick:b=>{$('#q4msg').textContent=`This ${b.size} KB is free, but it sits between processes. Alone, it may be too small for a new job.`;$('#q4msg').className='msg';}});
+
+// ---------- Q5 ----------
+const Q5=[{name:'P1',size:40,busy:true},{size:30},{name:'P2',size:50,busy:true},{size:40},{name:'P3',size:30,busy:true},{size:50}];
+let q5;
+function q5draw(){drawStrip($('#q5strip'),q5)}
+$('#q5load').onclick=()=>{ const i=pickDynamic(q5,100,'ff'); const free=q5.filter(b=>!b.busy).reduce((a,b)=>a+b.size,0), big=Math.max(...q5.filter(b=>!b.busy).map(b=>b.size),0);
+  if(i<0){$('#q5msg').textContent=`Refused. ${free} KB are free in total, but the biggest free piece is only ${big} KB.`;$('#q5msg').className='msg bad';}
+  else {placeDynamic(q5,i,100,'New');q5draw();$('#q5msg').textContent='Loaded in one piece.';$('#q5msg').className='msg ok';$('#q5load').disabled=true;} };
+$('#q5comp').onclick=()=>{ const busy=q5.filter(b=>b.busy), free=q5.filter(b=>!b.busy).reduce((a,b)=>a+b.size,0);
+  q5=[...busy.map(b=>({...b,cls:''})),...(free?[{size:free}]:[])]; q5draw(); $('#q5msg').textContent=`Processes moved together. The free pieces are now one block of ${free} KB.`; $('#q5msg').className='msg'; };
+$('#q5reset').onclick=()=>{q5=Q5.map(b=>({...b}));$('#q5msg').textContent='';$('#q5load').disabled=false;q5draw()};
+$('#q5reset').click();
+
+// ---------- Q7: predict dynamic fit ----------
+const Q7B=(()=>{const s=[90,'U1',300,'U2',150,'U3',400,'U4',220];let a=0;return s.map(x=>{const b=typeof x==='number'?{start:a,size:x,busy:false}:{start:a,size:40,name:x,busy:true,cls:'alt'};a+=b.size;return b;});})();
+const Q7J=[{n:'P1',s:140},{n:'P2',s:260},{n:'P3',s:80}];
+let q7k,q7b;
+function q7draw(){
+  $('#q7jobs').innerHTML=Q7J.map((j,i)=>`<span class="card ${i===q7k?'cur':''} ${i<q7k?'done':''}">${j.n}: ${j.s} KB</span>`).join('');
+  drawStrip($('#q7strip'),q7b,{click:b=>q7k<Q7J.length&&!b.busy,onClick:(b,i)=>q7try(i)}); drawAddr($('#q7addr'),q7b);
+  if(q7k>=Q7J.length){const fr=q7b.filter(b=>!b.busy); $('#q7stat').innerHTML=`<span>Free in total: <b>${fr.reduce((a,b)=>a+b.size,0)} KB</b></span><span>Free blocks: <b>${fr.map(b=>b.size).join(', ')}</b></span><span>Biggest: <b>${Math.max(...fr.map(b=>b.size))} KB</b></span>`;}
+  else $('#q7stat').innerHTML='';
+}
+function q7try(i){
+  const j=Q7J[q7k], alg=$('#q7alg').value, e=pickDynamic(q7b,j.s,alg);
+  if(i===e){ q7b.forEach(b=>{if(b.cls==='new')b.cls=''}); const old=q7b[i].size; placeDynamic(q7b,i,j.s,j.n);
+    $('#q7msg').textContent=`Correct: ${j.n} takes ${j.s} KB of the ${old} KB block. ${old-j.s} KB stay free.`; $('#q7msg').className='msg ok'; q7k++; }
+  else { $('#q7msg').textContent=q7b[i].size<j.s?`Too small for ${j.s} KB.`:(alg==='ff'?'First-fit takes the first block that fits, scanning from the left.':'Best-fit takes the smallest block that still fits.'); $('#q7msg').className='msg bad'; }
+  q7draw();
+}
+function q7reset(){q7k=0;q7b=Q7B.map(b=>({...b}));$('#q7msg').textContent='';q7draw()}
+$('#q7reset').onclick=q7reset; $('#q7alg').onchange=q7reset; q7reset();
+
+// ---------- Q8: free & merge ----------
+const Q8=(()=>{const s=[['A',100,1],[0,80],['C',120,1],[0,60],['E',90,1],[0,70],['G',50,1]];let a=2000;return s.map(([n,sz,b])=>{const o={start:a,size:sz,busy:!!b,name:b?n:null};a+=sz;return o;});})();
+let q8;
+function q8draw(){drawStrip($('#q8strip'),q8,{click:b=>b.busy,onClick:(b,i)=>q8free(i)}); drawAddr($('#q8addr'),q8);}
+function q8free(i){
+  const b=q8[i], L=q8[i-1], R=q8[i+1], lf=L&&!L.busy, rf=R&&!R.busy;
+  q8[i]={start:b.start,size:b.size,busy:false}; q8=mergeFree(q8);
+  const nb=q8.find(x=>!x.busy&&x.start<=b.start&&x.start+x.size>b.start);
+  const n=(lf?1:0)+(rf?1:0);
+  const d=document.createElement('div');
+  d.textContent=`${b.name} ended (${b.start}, ${b.size} KB). Free neighbours: ${n===0?'none':(lf&&rf?'left and right':lf?'left':'right')}. New free block: starts at ${nb.start}, ${nb.size} KB.`;
+  $('#q8log').prepend(d); q8draw();
+}
+$('#q8reset').onclick=()=>{q8=Q8.map(b=>({...b}));$('#q8log').innerHTML='';q8draw()}; $('#q8reset').click();
+
+// ---------- Q9: lists ----------
+const Q9=[{start:500,size:120},{start:620,size:180,name:'X1',busy:true},{start:800,size:200},{start:1000,size:150,name:'X2',busy:true},{start:1150,size:250},{start:1400,size:200,name:'X3',busy:true},{start:1600,size:100}];
+const Q9OPS=[{t:'req',n:'Y1',s:90},{t:'req',n:'Y2',s:190},{t:'end',n:'X2'},{t:'req',n:'Y3',s:300}];
+let q9,q9k;
+function q9draw(){
+  $('#q9ops').innerHTML=Q9OPS.map((o,i)=>`<span class="card ${i===q9k?'cur':''} ${i<q9k?'done':''}">${i+1}. ${o.t==='req'?`${o.n} requests ${o.s} KB`:`${o.n} ends`}</span>`).join('');
+  drawStrip($('#q9strip'),q9.map(b=>({...b,cls:b.cls||(b.busy?'alt':'')}))); drawAddr($('#q9addr'),q9);
+  const fr=q9.filter(b=>!b.busy), bu=q9.filter(b=>b.busy);
+  $('#q9free').innerHTML='<tr><th>Start</th><th>Size (KB)</th></tr>'+fr.map(b=>`<tr><td>${b.start}</td><td>${b.size}</td></tr>`).join('')+`<tr><th>Total</th><th>${fr.reduce((a,b)=>a+b.size,0)}</th></tr>`;
+  $('#q9busy').innerHTML='<tr><th>Process</th><th>Start</th><th>Size (KB)</th></tr>'+bu.map(b=>`<tr><td>${b.name}</td><td>${b.start}</td><td>${b.size}</td></tr>`).join('');
+  $('#q9next').disabled=q9k>=Q9OPS.length;
+}
+$('#q9next').onclick=()=>{
+  const o=Q9OPS[q9k], alg=$('#q9alg').value; q9.forEach(b=>{if(b.cls==='new')b.cls=''});
+  if(o.t==='req'){ const i=pickDynamic(q9,o.s,alg);
+    if(i<0){$('#q9msg').textContent=`${o.n} cannot be loaded: no free block of ${o.s} KB in one piece.`;$('#q9msg').className='msg bad';}
+    else {const b=q9[i];$('#q9msg').textContent=`${o.n} goes into the ${b.size} KB block at ${b.start}. ${b.size-o.s?`${b.size-o.s} KB stay free at ${b.start+o.s}.`:'Nothing is left over.'}`;$('#q9msg').className='msg ok';placeDynamic(q9,i,o.s,o.n);}
+  } else { const i=q9.findIndex(b=>b.name===o.n); q9[i]={start:q9[i].start,size:q9[i].size,busy:false}; q9=mergeFree(q9);
+    const nb=q9.find(b=>!b.busy&&b.start<=1000&&b.start+b.size>1000);
+    $('#q9msg').textContent=`${o.n} released. Merged with its free neighbours: new free block at ${nb.start}, ${nb.size} KB.`;$('#q9msg').className='msg'; }
+  q9k++; q9draw();
+};
+function q9reset(){q9=Q9.map(b=>({...b}));q9k=0;$('#q9msg').textContent='';q9draw()}
+$('#q9reset').onclick=q9reset; $('#q9alg').onchange=q9reset; q9reset();
+
+// ---------- Q10: relocation ----------
+const Q10=[{start:200,size:100,name:'R1',busy:true},{start:300,size:100},{start:400,size:150,name:'R2',busy:true},{start:550,size:150},{start:700,size:120,name:'R3',busy:true},{start:820,size:130},{start:950,size:80,name:'R4',busy:true},{start:1030,size:170}];
+let q10,q10old;
+function q10draw(){drawStrip($('#q10strip'),q10.map(b=>({...b,cls:b.cls||(b.busy?'alt':'')}))); drawAddr($('#q10addr'),q10);}
+$('#q10load').onclick=()=>{ const i=pickDynamic(q10,400,'ff'); const fr=q10.filter(b=>!b.busy);
+  if(i<0){$('#q10msg').textContent=`Refused: ${fr.reduce((a,b)=>a+b.size,0)} KB are free, but the biggest piece is ${Math.max(...fr.map(b=>b.size))} KB.`;$('#q10msg').className='msg bad';}
+  else {placeDynamic(q10,i,400,'New');q10draw();$('#q10msg').textContent=`Loaded at address ${q10[i].start}.`;$('#q10msg').className='msg ok';$('#q10load').disabled=true;} };
+$('#q10comp').onclick=()=>{ let a=200; const busy=q10.filter(b=>b.busy), end=q10[q10.length-1].start+q10[q10.length-1].size;
+  const rows=busy.map(b=>{const r={n:b.name,o:q10old[b.name]??b.start,nw:a};b.start=a;a+=b.size;return r;});
+  q10=[...busy,{start:a,size:end-a,busy:false}]; q10draw();
+  $('#q10tab').innerHTML='<tr><th>Process</th><th>Old start</th><th>New start</th><th>Adjustment</th></tr>'+rows.map(r=>`<tr><td>${r.n}</td><td>${r.o}</td><td>${r.nw}</td><td>${r.nw-r.o}</td></tr>`).join('');
+  $('#q10msg').textContent=`All free space is now one block starting at ${a}.`; $('#q10msg').className='msg'; $('#q10comp').disabled=true; };
+$('#q10reset').onclick=()=>{q10=Q10.map(b=>({...b}));q10old={};Q10.filter(b=>b.busy).forEach(b=>q10old[b.name]=b.start);$('#q10tab').innerHTML='';$('#q10msg').textContent='';$('#q10load').disabled=false;$('#q10comp').disabled=false;q10draw()};
+$('#q10reset').click();
+
+// ================= interactive videos =================
+const b=(k,z,c,l,o={})=>Object.assign({k,z,c,l},o);
+const fr=(k,z)=>b(k,z,'free','free');
+const VID={
+1:{title:'Watch: leftover space inside a partition',l1:'Fixed partition',f:[
+ {s:[b('p',24,'free','Partition',{n:'24K'})],t:'A fixed partition of 24K waits for a job.'},
+ {s:[b('p',24,'busy','Job',{n:'20K of 24K',u:20})],t:'A 20K job is loaded. It uses only part of its partition.'},
+ {s:[b('p',24,'busy hl','Job',{n:'20K of 24K',u:20})],ask:'The last 4K belong to this partition, but nobody can use them. What is this wasted space called?'},
+ {s:[b('p',24,'busy hl','Job',{n:'20K of 24K',u:20})],t:'Internal fragmentation: space wasted inside a partition.'},
+ {s:[b('p',24,'busy','Job',{n:'20K of 24K',u:20})],t:'In bytes, with 1K = 1024 bytes, the leftover is 4 × 1024 = 4096 bytes. With 1K = 1000 it would be 4000.'},
+ {s:[b('p',24,'busy','Job',{n:'? of 24K',u:20})],ask:'Now the other way round: you know the partition size and the leftover. How do you get the job size?'},
+ {s:[b('p',24,'busy','Job',{n:'24K − leftover',u:20})],t:'Job size = partition size − leftover. Always say which value of 1K you used.'}]},
+2:{title:'Watch: fixed vs dynamic partitions',l1:'Fixed: 4 partitions of 25 KB',l2:'Dynamic: blocks cut to size',f:[
+ {s:[fr('a',25),fr('b',25),fr('c',25),fr('d',25)],s2:[fr('x',100)],t:'The same 100 KB of memory, managed two ways.'},
+ {s:[b('a',25,'new','A',{n:'10 of 25',u:10}),fr('b',25),fr('c',25),fr('d',25)],s2:[b('A',10,'new','A',{n:'10'}),fr('x',90)],t:'Job A needs 10 KB. Fixed: it takes a whole 25 KB partition. Dynamic: it gets exactly 10 KB.'},
+ {s:[b('a',25,'busy','A',{n:'10 of 25',u:10}),fr('b',25),fr('c',25),fr('d',25)],s2:[b('A',10,'busy','A',{n:'10'}),fr('x',90)],ask:'Job B needs 30 KB. Where can it go in each memory?'},
+ {s:[b('a',25,'busy','A',{n:'10 of 25',u:10}),b('b',25,'free bad','free'),b('c',25,'free bad','free'),b('d',25,'free bad','free')],s2:[b('A',10,'busy','A',{n:'10'}),b('B',30,'new','B',{n:'30'}),fr('x',60)],t:'Fixed: no partition is 30 KB, so B must wait. Dynamic: B gets a 30 KB block.'},
+ {s:[b('a',25,'busy','A',{n:'10 of 25',u:10}),fr('b',25),fr('c',25),fr('d',25)],s2:[b('A',10,'free hl','free',{n:'10'}),b('B',30,'busy','B',{n:'30'}),fr('x',60)],t:'Later, A ends. In the dynamic memory, a 10 KB hole appears between blocks.'},
+ {s:[b('a',25,'busy','A',{n:'10 of 25',u:10}),fr('b',25),fr('c',25),fr('d',25)],s2:[b('A',10,'free','free',{n:'10'}),b('B',30,'busy','B',{n:'30'}),fr('x',60)],ask:'Compare: which scheme is simpler for the OS? Which one uses memory better? Where does each one waste space?'}]},
+3:{title:'Watch: first-fit and best-fit with fixed partitions',l1:'Partitions in memory order',f:[
+ {s:[fr('A',30),fr('B',15),fr('C',50),fr('D',20)].map((x,i)=>({...x,l:'ABCD'[i],n:[30,15,50,20][i]+'K'})),t:'Partitions A 30K, B 15K, C 50K, D 20K. Job J1 needs 18K.'},
+ {s:[fr('A',30),fr('B',15),fr('C',50),fr('D',20)].map((x,i)=>({...x,l:'ABCD'[i],n:[30,15,50,20][i]+'K'})),ask:'First-fit: which partition will J1 take?'},
+ {s:[b('A',30,'new','A: J1',{n:'18 of 30',u:18}),b('B',15,'free','B',{n:'15K'}),b('C',50,'free','C',{n:'50K'}),b('D',20,'free','D',{n:'20K'})],t:'First-fit scans from the start and takes A, the first partition big enough. 12K are wasted inside.'},
+ {s:[fr('A',30),fr('B',15),fr('C',50),fr('D',20)].map((x,i)=>({...x,l:'ABCD'[i],n:[30,15,50,20][i]+'K'})),t:'Same memory, same job. This time with best-fit.'},
+ {s:[fr('A',30),fr('B',15),fr('C',50),fr('D',20)].map((x,i)=>({...x,l:'ABCD'[i],n:[30,15,50,20][i]+'K'})),ask:'Best-fit: which partition will J1 take?'},
+ {s:[b('A',30,'free','A',{n:'30K'}),b('B',15,'free','B',{n:'15K'}),b('C',50,'free','C',{n:'50K'}),b('D',20,'new','D: J1',{n:'18 of 20',u:18})],t:'Best-fit takes D, the smallest partition that fits. Only 2K are wasted.'},
+ {s:[b('A',30,'free','A',{n:'30K'}),b('B',15,'free','B',{n:'15K'}),b('C',50,'free','C',{n:'50K'}),b('D',20,'busy','D: J1',{n:'18 of 20',u:18})],ask:'A job of 45K arrives next. Which algorithm still has room for it?'}]},
+4:{title:'Watch: wasted space inside or between blocks?',l1:'Fixed partitions',l2:'Dynamic blocks after some jobs ended',f:[
+ {s:[b('a',30,'busy','J1',{n:'22 of 30',u:22}),b('b',30,'busy','J2',{n:'27 of 30',u:27}),b('c',30,'busy','J3',{n:'15 of 30',u:15})],s2:[b('p',25,'busy','P1'),fr('h1',10),b('q',30,'busy','P2'),fr('h2',15),b('r',20,'busy','P3')],t:'Two memories, both with wasted space.'},
+ {s:[b('a',30,'busy hl','J1',{n:'22 of 30',u:22}),b('b',30,'busy hl','J2',{n:'27 of 30',u:27}),b('c',30,'busy hl','J3',{n:'15 of 30',u:15})],s2:[b('p',25,'busy','P1'),fr('h1',10),b('q',30,'busy','P2'),fr('h2',15),b('r',20,'busy','P3')],ask:'Top: the striped parts are inside partitions that are already given to a job. What is this kind of waste called?'},
+ {s:[b('a',30,'busy','J1',{n:'22 of 30',u:22}),b('b',30,'busy','J2',{n:'27 of 30',u:27}),b('c',30,'busy','J3',{n:'15 of 30',u:15})],s2:[b('p',25,'busy','P1'),b('h1',10,'free hl','free'),b('q',30,'busy','P2'),b('h2',15,'free hl','free'),b('r',20,'busy','P3')],ask:'Bottom: these pieces are free, but sit between processes. What is this kind of waste called?'},
+ {s:[b('a',30,'busy','J1',{n:'22 of 30',u:22}),b('b',30,'busy','J2',{n:'27 of 30',u:27}),b('c',30,'busy','J3',{n:'15 of 30',u:15})],s2:[b('p',25,'busy','P1'),b('h1',10,'free hl','free'),b('q',30,'busy','P2'),b('h2',15,'free hl','free'),b('r',20,'busy','P3')],ask:'Which of the two could be fixed by moving the processes together?'}]},
+5:{title:'Watch: why compaction?',l1:'Memory',f:[
+ {s:[b('P1',20,'busy','P1'),fr('h1',15),b('P2',25,'busy','P2'),fr('h2',10),b('P3',20,'busy','P3'),fr('h3',10)],t:'Free memory: 15 + 10 + 10 = 35 KB. A new process needs 30 KB in one piece.'},
+ {s:[b('P1',20,'busy','P1'),fr('h1',15),b('P2',25,'busy','P2'),fr('h2',10),b('P3',20,'busy','P3'),fr('h3',10)],ask:'35 KB are free. Can the 30 KB process be loaded?'},
+ {s:[b('P1',20,'busy','P1'),b('h1',15,'free bad','free'),b('P2',25,'busy','P2'),b('h2',10,'free bad','free'),b('P3',20,'busy','P3'),b('h3',10,'free bad','free')],t:'No: none of the free pieces is 30 KB on its own.'},
+ {s:[b('P1',20,'busy','P1'),b('P2',25,'busy','P2'),b('P3',20,'busy','P3'),b('h1',35,'free hl','free',{n:'35'})],t:'Compaction: the OS slides the processes together. The free pieces become one block.'},
+ {s:[b('P1',20,'busy','P1'),b('P2',25,'busy','P2'),b('P3',20,'busy','P3'),b('N',30,'new','New'),b('h1',5,'free','')],t:'Now the 30 KB process fits.'},
+ {s:[b('P1',20,'busy','P1'),b('P2',25,'busy','P2'),b('P3',20,'busy','P3'),b('N',30,'busy','New'),b('h1',5,'free','')],ask:'Did compaction create new memory? What does it cost the OS to do it?'}]},
+6:{title:'Watch: two schemes, same processes',l1:'Scheme A: fixed, 4 × 30 KB',l2:'Scheme B: dynamic',f:[
+ {s:[fr('a',30),fr('b',30),fr('c',30),fr('d',30)],s2:[fr('x',120)],t:'120 KB of memory. Processes arrive in order: 20 KB, 35 KB, 25 KB.'},
+ {s:[b('a',30,'new','20 KB',{n:'20 of 30',u:20}),fr('b',30),fr('c',30),fr('d',30)],s2:[b('p1',20,'new','20'),fr('x',100)],t:'The 20 KB process is loaded in both schemes.'},
+ {s:[b('a',30,'busy','20 KB',{n:'20 of 30',u:20}),fr('b',30),fr('c',30),fr('d',30)],s2:[b('p1',20,'busy','20'),fr('x',100)],ask:'The 35 KB process arrives. What happens in Scheme A? In Scheme B?'},
+ {s:[b('a',30,'busy','20 KB',{n:'20 of 30',u:20}),b('b',30,'free bad','free'),b('c',30,'free bad','free'),b('d',30,'free bad','free')],s2:[b('p1',20,'busy','20'),b('p2',35,'new','35'),fr('x',65)],t:'Scheme A: no partition is 35 KB, so it is refused. Scheme B: it gets 35 KB.'},
+ {s:[b('a',30,'busy','20 KB',{n:'20 of 30',u:20}),b('b',30,'new','25 KB',{n:'25 of 30',u:25}),fr('c',30),fr('d',30)],s2:[b('p1',20,'busy','20'),b('p2',35,'busy','35'),b('p3',25,'new','25'),fr('x',40)],t:'The 25 KB process is loaded in both.'},
+ {s:[b('a',30,'busy','20 KB',{n:'20 of 30',u:20}),b('b',30,'busy','25 KB',{n:'25 of 30',u:25}),fr('c',30),fr('d',30)],s2:[b('p1',20,'busy','20'),b('p2',35,'busy','35'),b('p3',25,'busy','25'),fr('x',40)],ask:'For each scheme, count: memory given to processes, memory wasted inside partitions, memory still free. Which scheme did better?'}]},
+7:{title:'Watch: first-fit and best-fit with dynamic blocks',l1:'Memory in address order',f:[
+ {s:[b('U1',20,'busy','U1'),fr('f1',60),b('U2',20,'busy','U2'),fr('f2',35),b('U3',20,'busy','U3'),fr('f3',45)].map(x=>x.c==='free'?{...x,n:x.z+''}:x),t:'Free blocks: 60, 35 and 45 KB. A process P needs 30 KB.'},
+ {s:[b('U1',20,'busy','U1'),fr('f1',60),b('U2',20,'busy','U2'),fr('f2',35),b('U3',20,'busy','U3'),fr('f3',45)].map(x=>x.c==='free'?{...x,n:x.z+''}:x),ask:'First-fit: which free block does P take? What is left of that block?'},
+ {s:[b('U1',20,'busy','U1'),b('P',30,'new','P',{n:'30'}),b('f1',30,'free hl','free',{n:'30'}),b('U2',20,'busy','U2'),b('f2',35,'free','free',{n:'35'}),b('U3',20,'busy','U3'),b('f3',45,'free','free',{n:'45'})],t:'First-fit takes the 60 KB block and splits it: 30 KB for P, 30 KB stay free.'},
+ {s:[b('U1',20,'busy','U1'),fr('f1',60),b('U2',20,'busy','U2'),fr('f2',35),b('U3',20,'busy','U3'),fr('f3',45)].map(x=>x.c==='free'?{...x,n:x.z+''}:x),t:'Back to the start. Now with best-fit.'},
+ {s:[b('U1',20,'busy','U1'),fr('f1',60),b('U2',20,'busy','U2'),fr('f2',35),b('U3',20,'busy','U3'),fr('f3',45)].map(x=>x.c==='free'?{...x,n:x.z+''}:x),ask:'Best-fit: which free block does P take now? What is left?'},
+ {s:[b('U1',20,'busy','U1'),b('f1',60,'free','free',{n:'60'}),b('U2',20,'busy','U2'),b('P',30,'new','P',{n:'30'}),b('f2',5,'free hl',''),b('U3',20,'busy','U3'),b('f3',45,'free','free',{n:'45'})],t:'Best-fit takes the 35 KB block: 30 KB for P, a tiny 5 KB piece stays free.'},
+ {s:[b('U1',20,'busy','U1'),b('f1',60,'free','free',{n:'60'}),b('U2',20,'busy','U2'),b('P',30,'busy','P',{n:'30'}),b('f2',5,'free',''),b('U3',20,'busy','U3'),b('f3',45,'free','free',{n:'45'})],ask:'Which algorithm keeps the bigger free blocks for later? Which one leaves tiny pieces?'}]},
+8:{title:'Watch: freeing a block and merging',l1:'Memory',f:[
+ {s:[b('A',20,'busy','A'),b('L',15,'free','free',{n:'15'}),b('B',25,'busy','B'),b('C',20,'busy','C'),b('R',10,'free','free',{n:'10'}),b('D',10,'busy','D')],t:'Four processes and two free blocks. Watch what happens when a process ends.'},
+ {s:[b('A',20,'busy','A'),b('L',15,'free','free',{n:'15'}),b('B',25,'busy hl','B'),b('C',20,'busy','C'),b('R',10,'free','free',{n:'10'}),b('D',10,'busy','D')],ask:'B ends. Its left neighbour is free, its right neighbour is busy. What happens to the free blocks?'},
+ {s:[b('A',20,'busy','A'),b('L',40,'free hl','free',{n:'15 + 25 = 40'}),b('C',20,'busy','C'),b('R',10,'free','free',{n:'10'}),b('D',10,'busy','D')],t:'B joins the free block on its left: one free block of 40 KB, starting where the left block started.'},
+ {s:[b('A',20,'busy','A'),b('L',40,'free','free',{n:'40'}),b('C',20,'busy','C'),b('R',10,'free','free',{n:'10'}),b('D',10,'busy hl','D')],ask:'D ends. Which of its neighbours is free?'},
+ {s:[b('A',20,'busy','A'),b('L',40,'free','free',{n:'40'}),b('C',20,'busy','C'),b('R',20,'free hl','free',{n:'10 + 10 = 20'})],t:'D merges with the free block on its left: 20 KB.'},
+ {s:[b('A',20,'busy','A'),b('L',40,'free','free',{n:'40'}),b('C',20,'busy hl','C'),b('R',20,'free','free',{n:'20'})],ask:'Now C ends, with free blocks on BOTH sides. How many free blocks will there be, and how big?'},
+ {s:[b('A',20,'busy','A'),b('L',80,'free hl','free',{n:'40 + 20 + 20 = 80'})],t:'Three blocks become one. The new block starts at the start of the left free block.'}]},
+9:{title:'Watch: keeping the free and busy lists',l1:'Memory',f:[
+ {s:[b('f1',50,'free','free',{n:'50'}),b('X',40,'busy','X'),b('f2',70,'free','free',{n:'70'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 50 · 70 · 60      Busy list: X 40 · Y 40',t:'The memory manager keeps two lists: free blocks and busy blocks.'},
+ {s:[b('f1',50,'free','free',{n:'50'}),b('X',40,'busy','X'),b('f2',70,'free','free',{n:'70'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 50 · 70 · 60      Busy list: X 40 · Y 40',ask:'Z requests 45 KB with first-fit. Which entries of each list change?'},
+ {s:[b('Z',45,'new','Z',{n:'45'}),b('f1',5,'free hl',''),b('X',40,'busy','X'),b('f2',70,'free','free',{n:'70'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 5 · 70 · 60      Busy list: Z 45 · X 40 · Y 40',t:'The 50 KB entry becomes 5 KB (it moves 45 KB further). Z is added to the busy list.'},
+ {s:[b('Z',45,'busy','Z',{n:'45'}),b('f1',5,'free',''),b('X',40,'busy hl','X'),b('f2',70,'free','free',{n:'70'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 5 · 70 · 60      Busy list: Z 45 · X 40 · Y 40',ask:'X ends. Its neighbours are a 5 KB free block and a 70 KB free block. What does the free list become?'},
+ {s:[b('Z',45,'busy','Z',{n:'45'}),b('f1',115,'free hl','free',{n:'5 + 40 + 70 = 115'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 115 · 60      Busy list: Z 45 · Y 40',t:'X is removed from the busy list. Two free entries and X become one entry of 115 KB.'},
+ {s:[b('Z',45,'busy','Z',{n:'45'}),b('f1',115,'free','free',{n:'115'}),b('Y',40,'busy','Y'),b('f3',60,'free','free',{n:'60'})],note:'Free list: 115 · 60      Busy list: Z 45 · Y 40',ask:'Before you start the tutorial question: draw the memory as one strip, and update BOTH lists after every single operation. Why both?'}]},
+10:{title:'Watch: compaction and relocation',l1:'Memory with start addresses',f:[
+ {s:[b('P1',50,'busy','P1',{n:'@100'}),fr('h1',30),b('P2',40,'busy','P2',{n:'@180'}),fr('h2',50),b('P3',30,'busy','P3',{n:'@270'}),fr('h3',50)],t:'P1 starts at 100, P2 at 180, P3 at 270. 130 KB are free, in three pieces.'},
+ {s:[b('P1',50,'busy','P1',{n:'@100'}),fr('h1',30),b('P2',40,'busy hl','P2',{n:'@180'}),fr('h2',50),b('P3',30,'busy','P3',{n:'@270'}),fr('h3',50)],ask:'Compaction slides everything down towards address 100. Where will P2 start after it moves?'},
+ {s:[b('P1',50,'busy','P1',{n:'@100'}),b('P2',40,'new','P2',{n:'@150'}),b('P3',30,'new','P3',{n:'@190'}),b('h1',130,'free hl','free',{n:'130 @220'})],t:'P2 moves from 180 to 150: adjustment −30. P3 moves from 270 to 190: adjustment −80. P1 does not move.'},
+ {s:[b('P1',50,'busy','P1',{n:'@100'}),b('P2',40,'busy','P2',{n:'@150'}),b('P3',30,'busy','P3',{n:'@190'}),b('h1',130,'free','free',{n:'130 @220'})],ask:'Why is the adjustment negative? And why must the OS update every address inside P2 and P3?'},
+ {s:[b('P1',50,'busy','P1',{n:'@100'}),b('P2',40,'busy','P2',{n:'@150'}),b('P3',30,'busy','P3',{n:'@190'}),b('h1',130,'free','free',{n:'130 @220'})],t:'Relocation: adjustment = new start − old start. The OS applies it so each moved program still finds its own data.'}]}
+};
+
+// ---------- real-life street scenes (shown before each computer video) ----------
+const car=(k,z,l,o={})=>b(k,z,'busy',l,Object.assign({n:z+' m'},o));
+const pk=(k,z)=>b(k,z,'busy parked','',{n:''});
+const gap=(k,z,o={})=>b(k,z,'free','',Object.assign({n:z+' m free'},o));
+const bay=(k,z,o={})=>b(k,z,'free','',Object.assign({n:z+' m bay',bay:1},o));
+const inb=(k,z,u,l,o={})=>b(k,z,'busy',l,Object.assign({u,n:`${u} m car in ${z} m bay`,bay:1},o));
+const S0='A street where cars park along the curb, one behind the other.';
+const STORY={
+1:{l1:'A street with painted bays',f:[
+ {s:[bay('a',6),bay('b',6),bay('c',6)],t:S0+' Here, bays are painted on the ground: each one is 6 m long.'},
+ {s:[inb('a',6,4.5,'Car',{c:'new'}),bay('b',6),bay('c',6)],t:'A 4.5 m car parks in the first bay.'},
+ {s:[inb('a',6,4.5,'Car',{c:'busy hl'}),bay('b',6),bay('c',6)],ask:'1.5 m of that bay stay empty (red dashed line). Can another car use them?'},
+ {s:[inb('a',6,4.5,'Car'),bay('b',6),bay('c',6)],t:'No: that space belongs to the bay already taken. It is lost until the car leaves.'}]},
+2:{l1:'Top street: painted bays of 10 m',l2:'Bottom street: no lines at all',f:[
+ {s:[bay('a',10),bay('b',10),bay('c',10),bay('d',10)],s2:[gap('x',40)],t:'Two streets of 40 m. Top: four painted bays of 10 m. Bottom: no lines, park wherever there is room.'},
+ {s:[inb('a',10,4,'Car',{c:'new'}),bay('b',10),bay('c',10),bay('d',10)],s2:[car('c1',4,'Car',{c:'new'}),gap('x',36)],t:'A 4 m car parks on each street. Top: it uses a whole 10 m bay.'},
+ {s:[inb('a',10,4,'Car'),bay('b',10),bay('c',10),bay('d',10)],s2:[car('c1',4,'Car'),gap('x',36)],queue:['Bus 12 m'],ask:'A 12 m bus arrives. Where can it park on each street?'},
+ {s:[inb('a',10,4,'Car'),bay('b',10,{c:'free bad'}),bay('c',10,{c:'free bad'}),bay('d',10,{c:'free bad'})],s2:[car('c1',4,'Car'),car('bus',12,'Bus',{c:'new'}),gap('x',24)],queue:['Bus 12 m (top street)'],t:'Top: no bay is 12 m long, the bus must wait at the gate. Bottom: the bus simply takes 12 m of curb.'}]},
+3:{l1:'Painted bays of different sizes',f:[
+ {s:[bay('A',6,{n:'A · 6 m'}),bay('B',3,{n:'B · 3 m'}),bay('C',10,{n:'C · 10 m'}),bay('D',4,{n:'D · 4 m'})],queue:['Car 3.6 m'],t:'Four painted bays: A 6 m, B 3 m, C 10 m, D 4 m. A 3.6 m car waits at the gate.'},
+ {s:[inb('A',6,3.6,'Car',{c:'new'}),bay('B',3,{n:'B · 3 m'}),bay('C',10,{n:'C · 10 m'}),bay('D',4,{n:'D · 4 m'})],t:'Guard 1 is in a hurry: from the gate, he sends the car to the FIRST bay long enough. That is A. 2.4 m stay empty.'},
+ {s:[bay('A',6,{n:'A · 6 m'}),bay('B',3,{n:'B · 3 m'}),bay('C',10,{n:'C · 10 m'}),inb('D',4,3.6,'Car',{c:'new'})],t:'Guard 2 is careful: he walks the whole street and picks the SMALLEST bay long enough. That is D. Only 0.4 m stay empty.'},
+ {s:[bay('A',6,{n:'A · 6 m'}),bay('B',3,{n:'B · 3 m'}),bay('C',10,{n:'C · 10 m'}),inb('D',4,3.6,'Car')],ask:'Which guard wastes less space? Which one decides faster?'}]},
+4:{l1:'Top street: painted bays',l2:'Bottom street: no lines, some cars have left',f:[
+ {s:[inb('a',6,4,'Car'),inb('b',6,5,'Car'),inb('c',6,3,'Car')],s2:[car('p',5,'Car'),gap('h1',2),car('q',4,'Car'),gap('h2',3),car('r',4,'Car')],t:'Two streets, two ways of wasting curb space.'},
+ {s:[inb('a',6,4,'Car',{c:'busy hl'}),inb('b',6,5,'Car',{c:'busy hl'}),inb('c',6,3,'Car',{c:'busy hl'})],s2:[car('p',5,'Car'),gap('h1',2),car('q',4,'Car'),gap('h2',3),car('r',4,'Car')],ask:'Top street: the empty parts are INSIDE bays already taken. Can a new car use them?'},
+ {s:[inb('a',6,4,'Car'),inb('b',6,5,'Car'),inb('c',6,3,'Car')],s2:[car('p',5,'Car'),gap('h1',2,{c:'free hl'}),car('q',4,'Car'),gap('h2',3,{c:'free hl'}),car('r',4,'Car')],queue:['Car 4 m'],ask:'Bottom street: 2 m + 3 m = 5 m are free. Why can\'t a 4 m car park?'},
+ {s:[inb('a',6,4,'Car'),inb('b',6,5,'Car'),inb('c',6,3,'Car')],s2:[car('p',5,'Car'),gap('h1',2,{c:'free hl'}),car('q',4,'Car'),gap('h2',3,{c:'free hl'}),car('r',4,'Car')],t:'Top: space wasted inside the bays. Bottom: space wasted between the cars, in gaps too short to use.'}]},
+5:{l1:'A street with no lines',f:[
+ {s:[car('a',4,'Car'),gap('g1',3),car('b',5,'Car'),gap('g2',2),car('c',4,'Car'),gap('g3',2)],queue:['Van 6 m'],t:'3 + 2 + 2 = 7 m of curb are free, but in three gaps. A 6 m van waits.'},
+ {s:[car('a',4,'Car'),gap('g1',3,{c:'free bad'}),car('b',5,'Car'),gap('g2',2,{c:'free bad'}),car('c',4,'Car'),gap('g3',2,{c:'free bad'})],queue:['Van 6 m'],ask:'7 m are free. Can the 6 m van park?'},
+ {s:[car('a',4,'Car'),car('b',5,'Car'),car('c',4,'Car'),gap('g1',7,{c:'free hl'})],queue:['Van 6 m'],t:'A valet moves every car forward until they touch. The three gaps become one 7 m space at the end.'},
+ {s:[car('a',4,'Car'),car('b',5,'Car'),car('c',4,'Car'),car('van',6,'Van',{c:'new'}),gap('g1',1)],t:'The van parks. The valet did not make the street longer: he only joined the gaps. And moving cars takes him time.'}]},
+6:{l1:'Top street: 4 painted bays of 5 m',l2:'Bottom street: no lines',f:[
+ {s:[bay('a',5),bay('b',5),bay('c',5),bay('d',5)],s2:[gap('x',20)],queue:['Car 4 m','Van 7 m','Car 5 m'],t:'Two 20 m streets. Three vehicles arrive in order: a 4 m car, a 7 m van, a 5 m car.'},
+ {s:[inb('a',5,4,'Car',{c:'new'}),bay('b',5),bay('c',5),bay('d',5)],s2:[car('c1',4,'Car',{c:'new'}),gap('x',16)],queue:['Van 7 m','Car 5 m'],t:'The 4 m car parks on both streets.'},
+ {s:[inb('a',5,4,'Car'),bay('b',5,{c:'free bad'}),bay('c',5,{c:'free bad'}),bay('d',5,{c:'free bad'})],s2:[car('c1',4,'Car'),car('v',7,'Van',{c:'new'}),gap('x',9)],queue:['Van 7 m (top street)','Car 5 m'],t:'The 7 m van: no 5 m bay can take it on the top street. On the bottom street it parks.'},
+ {s:[inb('a',5,4,'Car'),inb('b',5,5,'Car',{c:'new'}),bay('c',5),bay('d',5)],s2:[car('c1',4,'Car'),car('v',7,'Van'),car('c2',5,'Car',{c:'new'}),gap('x',4)],queue:['Van 7 m (top street)'],ask:'Count on each street: how many vehicles parked, how much space is wasted inside bays, how much is still free?'}]},
+7:{l1:'A street with no lines (grey cars were already parked)',f:[
+ {s:[pk('o1',3),gap('g1',12),pk('o2',3),gap('g2',7),pk('o3',3),gap('g3',9)],queue:['Car 6 m'],t:'Free gaps along the curb: 12 m, 7 m and 9 m. A 6 m car arrives.'},
+ {s:[pk('o1',3),car('n',6,'Car',{c:'new'}),gap('g1',6,{c:'free hl'}),pk('o2',3),gap('g2',7),pk('o3',3),gap('g3',9)],t:'Guard 1 (first gap long enough): the 12 m gap. The car parks at its start, and 6 m stay free behind it.'},
+ {s:[pk('o1',3),gap('g1',12),pk('o2',3),car('n',6,'Car',{c:'new'}),gap('g2',1,{c:'free hl',n:'1 m'}),pk('o3',3),gap('g3',9)],t:'Guard 2 (smallest gap long enough): the 7 m gap. Only 1 m stays free behind the car.'},
+ {s:[pk('o1',3),gap('g1',12),pk('o2',3),car('n',6,'Car'),gap('g2',1,{n:'1 m'}),pk('o3',3),gap('g3',9)],ask:'Is a 1 m gap useful to anyone? Which guard keeps long gaps for buses?'}]},
+8:{l1:'A street with no lines',f:[
+ {s:[car('A',4,'A'),gap('g1',3),car('B',5,'B'),car('C',4,'C'),gap('g2',2),car('D',3,'D')],t:'Four cars along the curb, with two gaps.'},
+ {s:[car('A',4,'A'),gap('g1',8,{c:'free hl',n:'3 + 5 = 8 m'}),car('C',4,'C'),gap('g2',2),car('D',3,'D')],t:'Car B drives away. Its space joins the gap just before it: one 8 m gap.'},
+ {s:[car('A',4,'A'),gap('g1',8),car('C',4,'C',{c:'busy hl'}),gap('g2',2),car('D',3,'D')],ask:'Now C leaves, with a gap on both sides. How long will the gap be?'},
+ {s:[car('A',4,'A'),gap('g1',14,{c:'free hl',n:'8 + 4 + 2 = 14 m'}),car('D',3,'D')],t:'One single 14 m gap. The guard writes one line in his notebook instead of three.'}]},
+9:{l1:'A street with no lines',f:[
+ {s:[gap('g1',5),car('X',4,'X'),gap('g2',7),car('Y',4,'Y'),gap('g3',6)],note:'Guard\'s notebook 1, free gaps:   5 m at metre 0 · 7 m at metre 9 · 6 m at metre 20\nGuard\'s notebook 2, parked cars: X 4 m at metre 5 · Y 4 m at metre 16',t:'The guard keeps two notebooks: one for free gaps, one for parked cars, with where each one starts.'},
+ {s:[car('Z',4.5,'Z',{c:'new'}),gap('g1',0.5,{n:''}),car('X',4,'X'),gap('g2',7),car('Y',4,'Y'),gap('g3',6)],note:'Notebook 1, free gaps:   0.5 m at metre 4.5 · 7 m at metre 9 · 6 m at metre 20\nNotebook 2, parked cars: Z 4.5 m at metre 0 · X 4 m at metre 5 · Y 4 m at metre 16',t:'Car Z (4.5 m) takes the first gap. The guard updates BOTH notebooks.'},
+ {s:[car('Z',4.5,'Z'),gap('g1',11.5,{c:'free hl',n:'0.5 + 4 + 7 = 11.5 m'}),car('Y',4,'Y'),gap('g3',6)],note:'Notebook 1, free gaps:   11.5 m at metre 4.5 · 6 m at metre 20\nNotebook 2, parked cars: Z 4.5 m at metre 0 · Y 4 m at metre 16',t:'X drives away. Three lines of the gap notebook become one, and X is crossed out of the car notebook.'},
+ {s:[car('Z',4.5,'Z'),gap('g1',11.5,{n:'11.5 m'}),car('Y',4,'Y'),gap('g3',6)],ask:'What goes wrong if the guard updates only one notebook?'}]},
+10:{l1:'A valet parking street (numbers = metre where each car starts)',f:[
+ {s:[car('c1',5,'Car 1',{n:'at 0'}),gap('g1',3),car('c2',4,'Car 2',{n:'at 8'}),gap('g2',4),car('c3',3,'Car 3',{n:'at 16'}),gap('g3',5)],queue:['Bus 10 m'],t:'12 m are free in three gaps. A 10 m bus waits. Each car has a ticket with the metre where it is parked.'},
+ {s:[car('c1',5,'Car 1',{n:'at 0'}),car('c2',4,'Car 2',{c:'busy hl',n:'8 → 5'}),gap('g1',7),car('c3',3,'Car 3',{n:'at 16'}),gap('g3',5)],queue:['Bus 10 m'],t:'The valet moves car 2 forward, from metre 8 to metre 5. He changes its ticket by −3.'},
+ {s:[car('c1',5,'Car 1',{n:'at 0'}),car('c2',4,'Car 2',{n:'at 5'}),car('c3',3,'Car 3',{c:'busy hl',n:'16 → 9'}),gap('g1',12,{c:'free hl',n:'12 m from metre 12'})],queue:['Bus 10 m'],t:'Car 3 moves from metre 16 to metre 9: −7 on its ticket. The free space is now one 12 m stretch.'},
+ {s:[car('c1',5,'Car 1',{n:'at 0'}),car('c2',4,'Car 2',{n:'at 5'}),car('c3',3,'Car 3',{n:'at 9'}),car('bus',10,'Bus',{c:'new',n:'at 12'}),gap('g1',2)],ask:'Why must the valet write the new metre on each ticket? Why are the changes negative?'}]}
+};
+const BRIDGE={1:'car = job, bay = fixed partition, empty part of the bay = ?',2:'top street = fixed partitions, bottom street = dynamic partitions',3:'guard 1 = first-fit, guard 2 = best-fit',4:'empty part inside a bay, gap between cars: two kinds of fragmentation',5:'the valet = compaction',6:'top street = Scheme A, bottom street = Scheme B',7:'guard 1 = first-fit, guard 2 = best-fit, the space left behind the car = the split',8:'a car leaving = deallocation, gaps joining = merging free blocks',9:'notebook 1 = free list, notebook 2 = busy list',10:'valet = compaction, ticket change = relocation adjustment'};
+const ALL={};
+function FR(q){
+  if(ALL[q]) return ALL[q];
+  const st=STORY[q], V=VID[q];
+  const real=st.f.map(x=>Object.assign({view:'park',l1:st.l1,l2:st.l2},x));
+  const comp=V.f.map((x,i)=>Object.assign({view:'mem'},x,i===0?{t:'Now the same thing inside the computer ('+BRIDGE[q]+'). '+(x.t||'')}:{}));
+  return ALL[q]=real.concat(comp);
+}
+let vq=1,vi=0,vPlay=false,vT=null,vView='';
+function vRender(el,blocks,park){
+  const old={}; [...el.children].forEach(c=>old[c.dataset.k]=c);
+  blocks.forEach(bk=>{
+    let d=old[bk.k]; if(!d){d=document.createElement('div');d.dataset.k=bk.k;d.style.flexGrow=0;} delete old[bk.k];
+    d.className='vb '+bk.c+(park&&bk.bay?' bay':'');
+    const busy=/busy|new/.test(bk.c);
+    if(park){
+      if(busy){ const w=bk.u!=null?bk.u/bk.z*100:94;
+        d.innerHTML=`<span class="car" style="width:${w}%"><b>${bk.l||''}</b></span>`+(bk.u!=null?`<i class="left" style="width:${100-w-2}%"></i>`:'')+`<small>${bk.n||''}</small>`;
+      } else d.innerHTML=`<small>${bk.n||''}</small>`;
+    } else {
+      const frag=bk.u!=null?`<i class="fr hatch" style="width:${(bk.z-bk.u)/bk.z*100}%"></i>`:'';
+      d.innerHTML=frag+`<b>${bk.l||''}</b>`+(bk.n?`<small>${bk.n}</small>`:(bk.c.includes('free')&&bk.l?`<small>${bk.z} KB</small>`:''));
+    }
+    d.setAttribute('aria-label',`${bk.l||(park?'gap':'free')} ${bk.n||bk.z}`);
+    el.appendChild(d); requestAnimationFrame(()=>{d.style.flexGrow=bk.z;});
+  });
+  Object.values(old).forEach(c=>{c.style.flexGrow=0;c.style.opacity=0;setTimeout(()=>c.remove(),700);});
+}
+function vShow(){
+  const V=VID[vq], A=FR(vq), f=A[vi], park=f.view==='park';
+  if(f.view!==vView){ $('#vS1').innerHTML=''; $('#vS2').innerHTML=''; vView=f.view; }
+  $('#vTitle').textContent=V.title;
+  $('#vMode').textContent=park?'In real life':'In the computer'; $('#vMode').className='vmode '+(park?'real':'comp');
+  $('#vLegend').classList.toggle('on',park);
+  $('#vQueue').classList.toggle('on',!!(park&&f.queue)); $('#vQueue').innerHTML=f.queue?'<span>Waiting at the gate:</span>'+f.queue.map(x=>`<span class="qcar">${x}</span>`).join(''):'';
+  $('#vL1').textContent=(park?f.l1:V.l1)||''; $('#vL2').textContent=(park?f.l2:V.l2)||'';
+  $('#vS1').classList.toggle('park',park); $('#vS2').classList.toggle('park',park);
+  vRender($('#vS1'),f.s,park); $('#vW2').style.display=f.s2?'':'none'; if(f.s2) vRender($('#vS2'),f.s2,park);
+  $('#vNote').style.display=f.note?'':'none'; $('#vNote').textContent=f.note||'';
+  $('#vCap').textContent=f.t||''; $('#vAsk').classList.toggle('on',!!f.ask); $('#vQ').textContent=f.ask||'';
+  $('#vDots').innerHTML=A.map((x,i)=>`<button aria-label="Step ${i+1}${x.view==='park'?' (real life)':''}" class="${i<vi?'done':''} ${i===vi?'cur':''} ${x.ask&&i!==vi?'q':''}" style="${x.view==='park'&&i>=vi&&!x.ask?'background:color-mix(in srgb,var(--busy) 45%,var(--line))':''}" data-vi="${i}"></button>`).join('');
+  $$('[data-vi]').forEach(d=>d.onclick=()=>{vi=+d.dataset.vi;vStop();vShow();});
+  clearTimeout(vT);
+  if(vPlay){ if(f.ask) { vPlay=false; vBtn(); } else if(vi<A.length-1) vT=setTimeout(()=>{vi++;vShow();},f.d||3600); else { vPlay=false; vBtn(); } }
+}
+function vBtn(){ const V=VID[vq]; $('#vPlay').textContent=vPlay?'Pause':(vi>=FR(vq).length-1?'Replay':'Play'); }
+function vStop(){vPlay=false;clearTimeout(vT);vBtn();}
+$('#vPlay').onclick=()=>{ const V=VID[vq]; if(vPlay){vStop();return;} if(vi>=FR(vq).length-1) vi=0; else if(FR(vq)[vi].ask) vi++; vPlay=true; vBtn(); vShow(); };
+$('#vGo').onclick=()=>{ const V=VID[vq]; if(vi<FR(vq).length-1){vi++;vPlay=true;vBtn();vShow();} };
+$('#vRestart').onclick=()=>{vi=0;vPlay=true;vBtn();$('#vS1').innerHTML='';$('#vS2').innerHTML='';vShow();};
+function vLoad(n){ vq=n; vi=0; vView=''; vStop(); $('#vS1').innerHTML=''; $('#vS2').innerHTML=''; vShow(); }
+const _showQ=showQ;
+showQ=function(n,scroll){ _showQ(n,scroll); if(n!==vq||!$('#vS1').children.length) vLoad(n); };
+vLoad(1);
+</script>
+</body>
+</html>
+
+</body></html>
