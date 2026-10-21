@@ -1,0 +1,362 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inside Paging</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --blue:#2F6FDB; --green:#2E8B57; --red:#C0392B; --amber:#B87410; --wood:#B98A55; --woodd:#8C6239; --hl:#FFF1C9;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --wood:#7A5A38; --woodd:#5E4329; --hl:#3A3420;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --wood:#7A5A38; --woodd:#5E4329; --hl:#3A3420;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.12;margin:0}
+.n,.mono,code{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:58ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:1.05rem} nav button span{font-size:.82rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.btn{font:inherit;font-weight:700;font-size:.92rem;padding:7px 13px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:4px 10px;font-size:.85rem}
+.btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+select,input[type=number]{font:inherit;padding:5px 7px;border-radius:7px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.note{font-size:.88rem;color:var(--muted)}
+/* scene */
+.scene{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:12px 14px;margin-bottom:18px}
+.stop{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.stop b{font-family:"Bricolage Grotesque",sans-serif;font-size:1.1rem}
+.badge{display:inline-block;font-size:.76rem;font-weight:700;color:#fff;background:var(--amber);padding:2px 9px;border-radius:999px;margin-left:8px;vertical-align:middle}
+.srow{margin:8px 0}
+.srow .lab{font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:3px}
+.sitems{display:flex;gap:6px;min-height:62px;padding:8px;border-radius:10px}
+.sitems.desk{background:#DADCE0;border-radius:12px 12px 4px 4px;padding:8px 8px 0}
+.sitems.desk .it{border-radius:10px 10px 0 0;box-shadow:none}
+.sitems.desk .it.empty{border-color:#80868B;color:#5F6368}
+.sitems.shelf{background:var(--soft);border:2px dashed var(--line)}
+.sitems.plain{background:var(--soft)}
+.it{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px 6px 4px 4px;color:#fff;font-weight:700;font-size:.85rem;text-align:center;padding:4px;line-height:1.15;text-shadow:0 0 3px rgba(0,0,0,.45);box-shadow:inset -5px 0 0 rgba(0,0,0,.18);transition:transform .35s,opacity .35s}
+.it small{font-weight:500;font-size:.72rem}
+.it.empty{background:transparent!important;border:2px dashed rgba(255,255,255,.75);box-shadow:none;color:rgba(255,255,255,.9);text-shadow:none}
+.sitems.plain .it.empty,.sitems.shelf .it.empty{border-color:var(--line);color:var(--muted)}
+.it.new{animation:pop .5s ease-out}
+.it.hit{outline:4px solid #7FB0FF;outline-offset:-4px}
+.it.out{opacity:.35;outline:4px solid #FF6B5B;outline-offset:-4px}
+@keyframes pop{from{transform:translateY(-18px) scale(.8);opacity:0}to{transform:none;opacity:1}}
+.scap{font-size:1.05rem;margin:8px 0 0;min-height:2.6em}
+.sask{display:none;margin-top:8px;border:2px dashed var(--blue);border-radius:10px;padding:10px 12px}
+.sask.on{display:block}
+.sask p{margin:0 0 8px;font-weight:700}
+.sdots{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.sdots button{width:20px;height:8px;border:0;border-radius:4px;background:var(--line);padding:0;cursor:pointer}
+.sdots button.done{background:var(--muted)} .sdots button.cur{background:var(--ink)} .sdots button.q{background:var(--blue)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.84rem;color:var(--muted);margin-bottom:6px}
+.legend b{color:var(--ink)}
+/* lab */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:22px}
+@media (max-width:860px){.lab{grid-template-columns:1fr}}
+.intro h2{font-size:1.55rem;font-weight:800;margin-bottom:8px}
+.intro p{margin:0 0 10px;max-width:44ch}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:10px 14px;border-radius:0 8px 8px 0}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+table.t{border-collapse:collapse;font-size:.92rem}
+table.t th,table.t td{border:1px solid var(--line);padding:4px 7px;text-align:center;min-width:30px}
+table.t th{background:var(--soft);font-size:.8rem}
+table.t td.cur{background:var(--hl)}
+table.t td.flt{color:var(--red);font-weight:700}
+table.t td.newp{color:var(--green);font-weight:800}
+.scroll{overflow-x:auto}
+.stat{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:.95rem}
+.stat b{font-size:1.05rem}
+.aux{margin-top:10px;font-size:.92rem;background:var(--soft);border-radius:8px;padding:8px 10px;min-height:2.4em}
+.bars{display:grid;gap:5px;margin-top:6px}
+.bar{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;align-items:center;font-size:.85rem}
+.trk{height:16px;background:var(--soft);border-radius:8px;overflow:hidden;display:flex;align-items:center}
+.trk i{display:block;height:100%;border-radius:8px}
+.prog{display:flex;height:56px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin:6px 0 12px}
+.prog span{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;border-right:2px solid var(--panel);text-shadow:0 0 3px rgba(0,0,0,.45);min-width:0;overflow:hidden;white-space:nowrap}
+.prog span:last-child{border-right:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:2px solid var(--ink);border-radius:8px;padding:4px 10px;font-size:.88rem;background:var(--panel)}
+.chip b{display:block;font-size:.95rem}
+.frames{display:flex;gap:6px;margin-top:8px}
+.frames div{flex:1;min-height:48px;border:2px dashed var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.45)}
+.steps{margin:8px 0 0;padding-left:20px} .steps li{margin:4px 0}
+.steps li.bad{color:var(--red)}
+.big{font:700 1.3rem "JetBrains Mono",monospace}
+.thr{display:flex;gap:3px;flex-wrap:wrap;margin:8px 0}
+.thr i{width:20px;height:20px;border-radius:4px;display:block}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+@media (prefers-reduced-motion: reduce){.it.new{animation:none}.it{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Inside Paging</h1>
+    <p>Operating Systems, Tutorial 3: virtual memory and page replacement. Each tab starts with a short scene in Chrome, the browser you use every day, then an experiment with its own numbers. Use the same method on the tutorial questions.</p>
+  </div>
+</header>
+<nav role="tablist" aria-label="Tutorial 3 questions" id="nav"></nav>
+<div class="pager" id="pager"></div>
+
+<section class="scene" aria-label="Real-life scene">
+  <div class="stop"><div><b id="sTitle"></b><span class="badge" id="sBadge">In Chrome</span></div>
+    <div class="row" style="margin:0"><button class="btn sm" id="sPlay">Play</button><button class="btn ghost sm" id="sRe">Restart</button></div></div>
+  <div class="legend"><span><b>tab</b> = page</span><span><b>room for an active tab</b> = page frame (RAM)</span><span><b>sleeping tab</b> = page on disk</span><span><b>tab reloads when you come back</b> = page fault</span><span><b>Chrome's list of tabs</b> = tables</span></div>
+  <div id="sRows"></div>
+  <p class="scap" id="sCap" aria-live="polite"></p>
+  <div class="sask" id="sAsk"><p id="sQ"></p><button class="btn sm" id="sGo">Continue</button> <span class="note">Discuss with your partner first.</span></div>
+  <div class="sdots" id="sDots"></div>
+</section>
+
+<section class="lab">
+  <div class="intro"><h2 id="lTitle"></h2><div id="lIntro"></div></div>
+  <div class="stage" id="stage"></div>
+</section>
+
+<footer>Companion for Operating Systems Tutorial 3. Experiments use their own numbers, not the tutorial's.</footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const PAL=['#2F6FDB','#2E8B57','#C2571A','#7B5EA7','#B5476B','#2A9D8F','#8A6D1F','#4B5D9A','#B03A2E','#3E7C3E'];
+const colorOf=k=>{let h=0;for(const c of String(k))h=(h*31+c.charCodeAt(0))%997;return PAL[h%PAL.length];};
+const I=(k,l,o={})=>Object.assign({k,l:l??k},o);
+const E=()=>({k:'_'+Math.random(),l:'',c:'empty'});
+
+// ======================= SCENES =======================
+const desk=(items,lab='Chrome\'s memory (RAM): room for 3 active tabs')=>({cls:'desk',lab,items});
+const shelf=(items,lab='Sleeping tabs: still in the tab bar, but removed from memory')=>({cls:'shelf',lab,items});
+const plain=(items,lab)=>({cls:'plain',lab,items});
+const APPC={YouTube:'#D62828',Gmail:'#C5221F',Docs:'#1A73E8',Maps:'#188038',Netflix:'#8B1E1E',eLearning:'#7B5EA7',Spotify:'#2E8B57',Drive:'#B06000'};
+const A=(n,o={})=>I(n,n,Object.assign({col:APPC[n]},o));
+const SC={
+q1:{title:'YouTube, a web page, Netflix',f:[
+ {rows:[plain([I('w','The whole program: too big to load at once',{w:12,col:'#4B5D9A'})],'A big program')],t:'A program is often too big for memory. So it is cut into pieces and only the pieces we need are loaded. Chrome does this all day. The question is: HOW is it cut, and WHAT lists are kept?'},
+ {rows:[plain(['0-10s','10-20s','20-30s','30-40s','40-50s','50-60s'].map((x,i)=>I('y'+i,x,{w:1.5,col:'#D62828'})),'i) Demand paging: a YouTube video, cut into pieces of the SAME size'),desk([I('y0','0-10s',{c:'new',col:'#D62828'}),I('y1','10-20s',{c:'new',col:'#D62828'}),E()],'Memory: only the pieces near what you watch (the grey bar)')],t:'A YouTube video is cut into small pieces of the same length. The grey bar shows the pieces already loaded. Jump to the end and a new piece must be loaded first. Pages: same size, loaded only when needed.'},
+ {rows:[plain([I('h','HTML 20 KB',{w:1.5,col:'#E07A1F'}),I('c','CSS 60 KB',{w:2.5,col:'#2F6FDB'}),I('j','JavaScript 300 KB',{w:3.5,col:'#B8860B'}),I('i','Image 900 KB',{w:4.5,col:'#2E8B57'})],'ii) Segmented: a web page, cut into parts with a MEANING'),desk([I('h','HTML',{c:'new',col:'#E07A1F'}),I('c','CSS',{c:'new',col:'#2F6FDB'}),E()],'Memory')],t:'A web page is made of parts with a meaning: HTML (text), CSS (style), JavaScript (code), images. Each part has a different size. Try it: press F12 in Chrome, open the Network tab, look at Type and Size.'},
+ {rows:[plain([I('a0','Ep.1 · part 1',{col:'#7B5EA7'}),I('a1','Ep.1 · part 2',{col:'#7B5EA7'}),I('a2','Ep.1 · part 3',{col:'#7B5EA7'}),I('b0','Ep.2 · part 1',{col:'#B5476B'}),I('b1','Ep.2 · part 2',{col:'#B5476B'})],'iii) Segmented/demand paging: a Netflix series'),desk([I('a1','Ep.1 · part 2',{c:'new',col:'#7B5EA7'}),E(),E()],'Memory: only the parts you are watching')],t:'A Netflix series is cut by episode (segments, different lengths). Then each episode arrives in small parts of the same size (pages), only the parts you watch.'},
+ {rows:[plain([I('n1','Job Table',{col:'#566664',sub:'like Chrome Task Manager (Shift+Esc)'}),I('n2','Segment Map Table',{col:'#566664',sub:'where each segment is'}),I('n3','Page Map Table',{col:'#566664',sub:'where each page is'}),I('n4','Memory Map Table',{col:'#566664',sub:'free memory'})],'The lists the memory manager can keep')],ask:'YouTube, web page, Netflix: which lists does each one need? Why does Netflix need one list more than the others?'}
+]},
+q2:{title:'Too many tabs open',f:[
+ {rows:[desk([E(),E(),E()]),shelf(['YouTube','Gmail','Docs','Netflix'].map(x=>A(x)),'Sites you will open')],t:'Imagine Chrome has memory for only 3 active tabs. When there is no room, Chrome puts a tab to sleep: it stays in the tab bar, but its content is removed from memory.'},
+ {rows:[desk([A('YouTube',{c:'new'}),E(),E()]),shelf(['Gmail','Docs','Netflix'].map(x=>A(x)),'Sites you will open')],t:'You open YouTube. The page loads from zero: you wait a little. That wait is a page fault.'},
+ {rows:[desk([A('YouTube'),A('Gmail',{c:'new'}),E()]),shelf(['Docs','Netflix'].map(x=>A(x)),'Sites you will open')],t:'You open Gmail: it also loads. Second page fault.'},
+ {rows:[desk([A('YouTube',{c:'hit'}),A('Gmail'),E()]),shelf(['Docs','Netflix'].map(x=>A(x)),'Sites you will open')],t:'You click back on the YouTube tab: it is still in memory, it appears instantly, the video is where you left it. No fault.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs',{c:'new'})]),shelf([A('Netflix')],'Sites you will open')],t:'You open Google Docs: page fault. Now the memory is full.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs')]),shelf([A('Netflix')],'Sites you will open')],ask:'You open Netflix, but there is no room. Chrome must put one tab to sleep. Which one should it choose?'},
+ {rows:[desk([A('YouTube',{c:'out'}),A('Gmail'),A('Docs')],'Rule 1 · FIFO'),shelf([A('Netflix')],'Waiting')],t:'Rule 1, FIFO (first in, first out): put to sleep the tab opened FIRST. That is YouTube, even though you just watched it!'},
+ {rows:[desk([A('YouTube'),A('Gmail',{c:'out'}),A('Docs')],'Rule 2 · LRU'),shelf([A('Netflix')],'Waiting')],t:'Rule 2, LRU (least recently used): put to sleep the tab you have not looked at for the LONGEST time. That is Gmail. Chrome\'s Memory Saver works like this: it chooses inactive tabs.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs')]),shelf([A('Netflix')],'Waiting')],ask:'Have you ever clicked on an old tab and seen it reload? Which rule was Chrome using?'}
+]},
+q3:{title:'Sites you visit most',f:[
+ {rows:[desk([A('eLearning',{sub:'visited 40×'}),A('Maps',{sub:'visited 1×'}),A('Spotify',{sub:'visited 6×'})])],t:'A third rule, LFU (least frequently used): put to sleep the site you visit the FEWEST times. Chrome already keeps a score of how often you use each site: type chrome://site-engagement to see it.'},
+ {rows:[desk([A('eLearning',{sub:'visited 40×'}),A('Maps',{sub:'visited 1×'}),A('Spotify',{sub:'visited 6×'})])],ask:'For LRU, Chrome only needs to know "used recently: yes or no". What extra information does it need for LFU? What must it do every time you visit a site?'},
+ {rows:[desk([A('eLearning',{sub:'40 → 41'}),A('Maps',{c:'out',sub:'1 = the smallest'}),A('Spotify',{sub:'6'})])],t:'It needs a counter for every site, and it adds 1 at every visit. To choose, it looks for the smallest counter. More work, but it remembers your habits.'}
+]},
+q4:{title:'Tabs that reload less often',f:[
+ {rows:[desk([A('YouTube'),A('Gmail')],'Old laptop: memory for 2 tabs'),shelf(['Docs','Maps','Drive'].map(x=>A(x)),'Sleeping tabs')],t:'On an old laptop with little RAM, your tabs reload all the time.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs'),A('Maps')],'More RAM: memory for 4 tabs'),shelf([A('Drive')],'Sleeping tabs')],t:'Idea 1: more memory (more page frames). Tabs reload less often.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs')],'Same laptop, smarter rule'),shelf(['Maps','Drive'].map(x=>A(x)),'Sleeping tabs')],t:'Idea 2: a smarter rule to choose which tab to put to sleep, like LRU instead of FIFO.'},
+ {rows:[desk([A('Docs',{sub:'assignment'}),A('eLearning',{sub:'assignment'}),A('Drive',{sub:'assignment'})],'Keep the working set'),shelf(['YouTube','Netflix'].map(x=>A(x)),'Sleeping tabs')],t:'Idea 3: keep together the tabs you are using right now, for example for an assignment: Docs, eLearning, Drive. That is the working set. In Chrome you can even group them.'},
+ {rows:[desk([A('YouTube'),A('Gmail'),A('Docs')]),shelf(['Maps','Drive'].map(x=>A(x)),'Sleeping tabs')],ask:'Which idea costs money? Which ideas only need a better algorithm?'}
+]},
+q5:{title:'Chrome cache and virtual memory',f:[
+ {rows:[plain([I('c','Cache',{col:'#C2571A',w:1.5,sub:'small · very fast'}),I('r','RAM',{col:'#2E8B57',w:2.5,sub:'fast'}),I('s','Disk',{col:'#4B5D9A',w:5,sub:'big · slow'})],'From fastest to biggest')],t:'Chrome keeps a cache: a copy of images and files from sites you already visited. A second visit shows them almost instantly. The CPU cache works the same way, but inside the processor.'},
+ {rows:[plain([I('c','Cache',{col:'#C2571A',w:1.5}),I('r','RAM',{col:'#2E8B57',w:2.5}),I('s','Page file on the disk',{col:'#4B5D9A',w:5,c:'hit',sub:'virtual memory · big · slow'})],'From fastest to biggest')],t:'When you open too many tabs and the RAM is full, Windows moves some of Chrome\'s memory to a file on the disk. That is virtual memory: more space, but much slower.'},
+ {rows:[plain([I('c','Cache',{col:'#C2571A',w:1.5}),I('r','RAM',{col:'#2E8B57',w:2.5}),I('s','Virtual memory',{col:'#4B5D9A',w:5})],'From fastest to biggest')],ask:'Compare the cache and virtual memory: where is each one, how fast, how big, how expensive, and what is each one for?'}
+]},
+q6:{title:'Jumping ahead in a YouTube video',f:[
+ {rows:[plain(['0','1','2','3','4'].map(x=>I('b'+x,'Chunk '+x,{col:'#D62828',sub:'KB '+(x*512)+'–'+(x*512+511)})),'The video is downloaded in chunks of 512 KB')],t:'A YouTube video is downloaded in chunks, say 512 KB each. You jump to the point at KB 1300. Which chunk is it in?'},
+ {rows:[plain(['0','1','2','3','4'].map(x=>I('b'+x,'Chunk '+x,{col:'#D62828',c:x==='2'?'hit':'',sub:'KB '+(x*512)+'–'+(x*512+511)})),'The video is downloaded in chunks of 512 KB')],t:'1300 divided by 512 is 2, with 276 left over. It is in chunk 2, at position 276. Chunk = page number, position = displacement.'},
+ {rows:[plain([I('c0','Chunk 0',{col:'#566664',sub:'downloaded'}),I('c1','Chunk 1',{col:'#566664',sub:'downloaded'}),I('c2','Chunk 2',{col:'#B03A2E',c:'hit',sub:'NOT downloaded'})],'Chrome\'s list of chunks (page map table)')],t:'Chunk 2 is not downloaded yet: you see the loading circle. That is a page fault.'},
+ {rows:[desk([I('x','Chunk 0',{col:'#D62828',sub:'just watched'}),I('y','Chunk 1',{col:'#D62828',c:'out',sub:'not watched · not changed'})],'Memory is full'),shelf([I('b2','Chunk 2',{col:'#D62828'})],'Not in memory')],t:'To make room, Chrome drops a chunk you have not watched recently. A video chunk is never changed, so it can be dropped without saving anything.'},
+ {rows:[desk([A('Netflix',{c:'new'})],'Old laptop: memory for 1 heavy tab'),shelf([A('Docs')],'Sleeping tabs')],t:'Now imagine an old laptop with memory for only one heavy tab, and you keep switching between a Netflix tab and a Google Docs tab.'},
+ {rows:[desk([A('Docs',{c:'new'})],'Old laptop: memory for 1 heavy tab'),shelf([A('Netflix')],'Sleeping tabs')],ask:'At every switch, the other tab reloads. Do you spend more time working or waiting? What is this called for a computer?'}
+]}
+};
+let sq='q1', si=0, sPlaying=false, sT=null;
+function rowHTML(r){ return `<div class="srow"><div class="lab">${r.lab}</div><div class="sitems ${r.cls}">${r.items.map(it=>{ const c=it.c||''; const col=it.col||colorOf(it.l||it.k);
+  return `<div class="it ${c}" style="flex-grow:${it.w||1};${c.includes('empty')?'':'background:'+col}">${it.l||''}${it.sub?`<small>${it.sub}</small>`:''}</div>`; }).join('')}</div></div>`; }
+function sShow(){ const S=SC[sq], f=S.f[si]; $('#sTitle').textContent=S.title; $('#sBadge').textContent=S.badge||'In Chrome'; $('#sRows').innerHTML=f.rows.map(rowHTML).join('');
+  $('#sCap').textContent=f.t||''; $('#sAsk').classList.toggle('on',!!f.ask); $('#sQ').textContent=f.ask||'';
+  $('#sDots').innerHTML=S.f.map((x,i)=>`<button aria-label="Scene step ${i+1}" class="${i<si?'done':''} ${i===si?'cur':''} ${x.ask&&i!==si?'q':''}" data-si="${i}"></button>`).join('');
+  $$('[data-si]').forEach(d=>d.onclick=()=>{si=+d.dataset.si;sStop();sShow();});
+  clearTimeout(sT);
+  if(sPlaying){ if(f.ask){sPlaying=false;sBtn();} else if(si<S.f.length-1) sT=setTimeout(()=>{si++;sShow();},3600); else {sPlaying=false;sBtn();} } }
+function sBtn(){ $('#sPlay').textContent=sPlaying?'Pause':(si>=SC[sq].f.length-1?'Replay':'Play'); }
+function sStop(){ sPlaying=false; clearTimeout(sT); sBtn(); }
+$('#sPlay').onclick=()=>{ const S=SC[sq]; if(sPlaying){sStop();return;} if(si>=S.f.length-1) si=0; else if(S.f[si].ask) si++; sPlaying=true; sBtn(); sShow(); };
+$('#sGo').onclick=()=>{ if(si<SC[sq].f.length-1){si++;sPlaying=true;sBtn();sShow();} };
+$('#sRe').onclick=()=>{ si=0; sPlaying=true; sBtn(); sShow(); };
+
+// ======================= PAGE REPLACEMENT SIMULATOR =======================
+const TUTSTR='A B A C D A E F G C B G';
+const PRESETS=['1 2 3 1 4 2 5 1 2 3 4 5','A B C A D B E A B C D E','P Q R P S Q P R S T P Q','7 0 1 2 0 3 0 4 2 3 0 3'];
+function simulate(refs,nf,alg){
+  const frames=Array(nf).fill(null), cols=[]; let arrive=[], last={}, cnt={}, t=0, faults=0;
+  refs.forEach((p,i)=>{ t++; cnt[p]=(cnt[p]||0); let fault=false, victim=null, slot=frames.indexOf(p);
+    if(slot<0){ fault=true; faults++; let free=frames.indexOf(null);
+      if(free<0){ let v;
+        if(alg==='FIFO') v=arrive[0];
+        else if(alg==='LRU') v=frames.reduce((a,b)=>last[a]<=last[b]?a:b);
+        else v=frames.reduce((a,b)=>(cnt[a]<cnt[b]||(cnt[a]===cnt[b]&&arrive.indexOf(a)<arrive.indexOf(b)))?a:b);
+        victim=v; free=frames.indexOf(v); arrive=arrive.filter(x=>x!==v); delete cnt[v]; cnt[p]=0; }
+      frames[free]=p; arrive.push(p); slot=free; }
+    cnt[p]=(cnt[p]||0)+1; last[p]=t;
+    cols.push({p,fault,victim,slot,frames:[...frames],arrive:[...arrive],last:{...last},cnt:{...cnt}}); });
+  return {cols,faults};
+}
+function makeSim(host,opt){
+  host.innerHTML=`<div class="row"><label>Reference string <select class="ps">${PRESETS.map(p=>`<option>${p}</option>`).join('')}</select></label><button class="btn ghost sm rnd">Random</button></div>
+   <div class="row"><label>Frames <select class="nf">${[1,2,3,4,5].map(n=>`<option ${n===3?'selected':''}>${n}</option>`).join('')}</select></label>
+   <span>Algorithm</span>${['FIFO','LRU','LFU'].map(a=>`<button class="btn sm ${a===opt.alg?'on':'ghost'}" data-a="${a}">${a}</button>`).join('')}</div>
+   <div class="row"><button class="btn st1">Next request</button><button class="btn ghost pl">Play</button><button class="btn ghost al">Show all</button><button class="btn ghost sm rs">Restart</button></div>
+   <div class="scroll"><table class="t tb"></table></div><div class="aux"></div><div class="stat"></div>${opt.compare?'<h3 style="margin-top:14px;font-size:1rem">Page faults vs number of frames (same string)</h3><div class="bars cmp"></div>':''}`;
+  const q=s=>host.querySelector(s); let refs, alg=opt.alg, res, shown=0, tm=null;
+  function setRefs(s){ refs=s.trim().split(/\s+/); run(); }
+  function run(){ res=simulate(refs,+q('.nf').value,alg); shown=0; stop(); draw(); if(opt.compare) cmp(); }
+  function draw(){ const nf=+q('.nf').value, C=res.cols;
+    let h='<tr><th>Request</th>'+refs.map((p,i)=>`<th class="${i===shown-1?'cur':''}">${p}</th>`).join('')+'</tr>';
+    h+='<tr><th>Fault</th>'+refs.map((p,i)=>`<td class="flt ${i===shown-1?'cur':''}">${i<shown&&C[i].fault?'*':''}</td>`).join('')+'</tr>';
+    for(let f=0;f<nf;f++) h+=`<tr><th>Frame ${f+1}</th>`+refs.map((p,i)=>{ const v=i<shown?C[i].frames[f]:null; const nw=i<shown&&C[i].fault&&C[i].slot===f; return `<td class="${i===shown-1?'cur ':''}${nw?'newp':''}">${v??''}</td>`; }).join('')+'</tr>';
+    q('.tb').innerHTML=h;
+    const c=C[shown-1], fl=C.slice(0,shown).filter(x=>x.fault).length;
+    let aux='Press <b>Next request</b>.';
+    if(c){ aux=c.fault?`<b>${c.p}</b> is not in memory → <b style="color:var(--red)">page fault</b>.`:`<b>${c.p}</b> is already in a frame → <b style="color:var(--green)">hit</b>.`;
+      if(c.victim) aux+=` Memory is full: ${alg} removes <b>${c.victim}</b> (${alg==='FIFO'?'it arrived first':alg==='LRU'?'not used for the longest time':'used the fewest times'}).`;
+      aux+='<br>'+(alg==='FIFO'?`Arrival order (oldest first): ${c.arrive.join(' → ')}`:alg==='LRU'?`Least recent → most recent: ${Object.keys(c.last).filter(k=>c.frames.includes(k)).sort((a,b)=>c.last[a]-c.last[b]).join(' → ')}`:`Use counters: ${c.frames.filter(Boolean).map(k=>`${k}=${c.cnt[k]}`).join(' · ')} (ties: oldest goes first)`); }
+    q('.aux').innerHTML=aux;
+    q('.stat').innerHTML=shown?`<span>Requests: <b>${shown}</b></span><span>Page faults: <b>${fl}</b></span><span>Hits: <b>${shown-fl}</b></span><span>Failure rate: <b>${Math.round(fl/shown*1000)/10}%</b></span>`:'';
+    q('.st1').disabled=shown>=refs.length; q('.al').disabled=shown>=refs.length; }
+  function cmp(){ const rows=[1,2,3,4,5,6].map(n=>[n,simulate(refs,n,'FIFO').faults,simulate(refs,n,'LRU').faults]);
+    q('.cmp').innerHTML='<div class="bar"><span></span><span class="note">FIFO</span><span class="note">LRU</span></div>'+rows.map(r=>`<div class="bar"><span>${r[0]} frame${r[0]>1?'s':''}</span><div class="trk"><i style="width:${r[1]/refs.length*100}%;background:var(--amber)"></i>&nbsp;${r[1]}</div><div class="trk"><i style="width:${r[2]/refs.length*100}%;background:var(--blue)"></i>&nbsp;${r[2]}</div></div>`).join(''); }
+  function stop(){ clearInterval(tm); tm=null; q('.pl').textContent='Play'; }
+  q('.ps').onchange=e=>setRefs(e.target.value);
+  q('.rnd').onclick=()=>{ let s; do{ const pool='ABCDEFG'.slice(0,4+Math.floor(Math.random()*3)); s=Array.from({length:12},()=>pool[Math.floor(Math.random()*pool.length)]).join(' '); }while(s===TUTSTR); setRefs(s); };
+  q('.nf').onchange=run;
+  host.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ alg=b.dataset.a; host.querySelectorAll('[data-a]').forEach(x=>x.className='btn sm '+(x===b?'on':'ghost')); run(); });
+  q('.st1').onclick=()=>{ stop(); if(shown<refs.length){shown++;draw();} };
+  q('.al').onclick=()=>{ stop(); shown=refs.length; draw(); };
+  q('.rs').onclick=()=>{ stop(); shown=0; draw(); };
+  q('.pl').onclick=()=>{ if(tm){stop();return;} if(shown>=refs.length) shown=0; q('.pl').textContent='Pause'; tm=setInterval(()=>{ if(shown<refs.length){shown++;draw();} else stop(); },1300); };
+  setRefs(opt.preset||PRESETS[0]);
+}
+
+// ======================= LABS =======================
+const LAB={
+q1:{tab:'Q1',sub:'Paging · segments',title:'Three ways to cut a program',
+ intro:`<p>Choose a scheme and see how the program is cut, which tables the memory manager keeps, and what goes into memory when the program needs a piece.</p><p class="think"><strong>Think:</strong> count the tables in each scheme. Which scheme needs one table more, and what does that extra table point to?</p>`,
+ mount(st){ const SEG=[['Code',2.5,'#C2571A'],['Data',1.5,'#7B5EA7'],['Stack',1,'#2A9D8F']];
+  const TB={paging:[['Job Table','one row per job'],['Page Map Table','page → frame'],['Memory Map Table','which frames are free']],seg:[['Job Table','one row per job'],['Segment Map Table','segment → address, size'],['Memory Map Table','free and busy memory']],segp:[['Job Table','one row per job'],['Segment Map Table','segment → its page table'],['Page Map Table','page → frame'],['Memory Map Table','which frames are free']]};
+  st.innerHTML=`<div class="row">${[['paging','Demand paging'],['seg','Segmentation'],['segp','Segmented / demand paging']].map(([k,l],i)=>`<button class="btn sm ${i?'ghost':'on'}" data-sch="${k}">${l}</button>`).join('')}</div>
+   <p class="note">Program: Code 2.5 KB · Data 1.5 KB · Stack 1 KB. Page size: 1 KB.</p><div class="prog" id="prog"></div>
+   <h3 style="font-size:1rem">Tables the memory manager keeps</h3><div class="chips" id="tbls"></div>
+   <h3 style="font-size:1rem;margin-top:12px">Main memory: 6 frames</h3><div class="row" style="margin-top:6px"><button class="btn sm" id="need">Program needs a piece</button><button class="btn ghost sm" id="clr">Empty memory</button></div><div class="frames" id="frm"></div><p class="note" id="needN"></p>`;
+  let sch='paging', pieces=[], mem=[];
+  function cut(){ if(sch==='paging'){ const tot=5; pieces=Array.from({length:tot},(_,i)=>({l:'Page '+i,w:1,c:'#2F6FDB'})); }
+    else if(sch==='seg') pieces=SEG.map(s=>({l:`${s[0]} (${s[1]} KB)`,w:s[1],c:s[2]}));
+    else { pieces=[]; SEG.forEach(s=>{ const n=Math.ceil(s[1]); for(let i=0;i<n;i++) pieces.push({l:`${s[0]} p${i}`,w:Math.min(1,s[1]-i),c:s[2]}); }); }
+    $('#prog').innerHTML=pieces.map(p=>`<span style="flex:${p.w} 1 0;background:${p.c}">${p.l}</span>`).join('');
+    $('#tbls').innerHTML=TB[sch].map(t=>`<div class="chip"><b>${t[0]}</b>${t[1]}</div>`).join('')+`<div class="chip" style="border-style:dashed"><b>${TB[sch].length} tables</b>in total</div>`;
+    mem=[]; drawMem(); }
+  function drawMem(){ $('#frm').innerHTML=Array.from({length:6},(_,i)=>{const m=mem[i];return `<div style="${m?`background:${m.c};border-style:solid;border-color:${m.c}`:''}">${m?m.l:'free'}</div>`;}).join('');
+    $('#needN').textContent=sch==='seg'?'Segments have different sizes: a big segment needs a big enough free space (it is shown here in one frame for simplicity).':'Only the pieces the program needs are loaded: the rest stays on disk.'; }
+  st.querySelectorAll('[data-sch]').forEach(b=>b.onclick=()=>{ sch=b.dataset.sch; st.querySelectorAll('[data-sch]').forEach(x=>x.className='btn sm '+(x===b?'on':'ghost')); cut(); });
+  $('#need').onclick=()=>{ const left=pieces.filter(p=>!mem.includes(p)); if(!left.length||mem.length>=6) return; mem.push(left[Math.floor(Math.random()*left.length)]); drawMem(); };
+  $('#clr').onclick=()=>{ mem=[]; drawMem(); };
+  cut(); }},
+q2:{tab:'Q2',sub:'FIFO vs LRU',title:'Fill the frame table: FIFO and LRU',
+ intro:`<p>Step through a reference string. Each column is one request; a star marks a page fault; green shows the page just loaded.</p><p>Run the same string with FIFO, then with LRU, and compare the number of faults.</p><p class="think"><strong>Think:</strong> on a fault with full memory, FIFO looks at the <em>arrival order</em> and LRU at the <em>last use</em>. Follow the line under the table to see what each algorithm looks at.</p>`,
+ mount(st){ makeSim(st,{alg:'FIFO'}); }},
+q3:{tab:'Q3',sub:'LFU',title:'From LRU to LFU: what must be added?',
+ intro:`<p>LFU removes the page used the <b>fewest times</b>. Run it and watch the use counters under the table.</p><p class="think"><strong>Think:</strong> LRU only needs a referenced bit. What does LFU need for every page, and what must the software do on every single memory access?</p>`,
+ mount(st){ makeSim(st,{alg:'LFU',preset:PRESETS[1]}); }},
+q4:{tab:'Q4',sub:'Fewer faults',title:'How can we get fewer page faults?',
+ intro:`<p>Change the number of frames and the algorithm. The chart under the table counts the faults for 1 to 6 frames with FIFO and LRU.</p><p class="think"><strong>Think:</strong> what helps more here: one more frame, or a better algorithm? Look for a string where keeping the "working set" in memory removes almost all faults.</p>`,
+ mount(st){ makeSim(st,{alg:'LRU',compare:true,preset:PRESETS[2]}); }},
+q5:{tab:'Q5',sub:'Virtual vs cache',title:'Cache memory and virtual memory',
+ intro:`<p>Both are "extra" memory, but at opposite ends: the cache is tiny and inside the CPU, virtual memory is huge and on the disk.</p><p class="think"><strong>Think:</strong> fill a table with 5 rows: purpose, location, speed, size, cost. Use the race on the right for the speed row.</p>`,
+ mount(st){ const L=[['CPU register','inside the CPU',0.3,'bytes','highest'],['Cache (L1–L3)','inside the CPU',2,'KB to MB','very high'],['Main memory (RAM)','on the motherboard',100,'GB','medium'],['SSD (virtual memory)','storage drive',100000,'hundreds of GB','low'],['Hard disk (virtual memory)','storage drive',10000000,'TB','lowest']];
+  const human=ns=>{ const s=ns; if(s<60) return `${s.toFixed(s<1?1:0)} seconds`; if(s<3600) return `${(s/60).toFixed(0)} minutes`; if(s<86400) return `${(s/3600).toFixed(1)} hours`; if(s<86400*60) return `${(s/86400).toFixed(1)} days`; return `${(s/86400/30).toFixed(0)} months`; };
+  st.innerHTML=`<table class="t" style="width:100%"><tr><th>level</th><th>where</th><th>size</th><th>cost per GB</th><th>time to fetch (approx.)</th><th>if 1 ns were 1 second…</th></tr>${L.map(l=>`<tr><td style="text-align:left"><b>${l[0]}</b></td><td>${l[1]}</td><td>${l[3]}</td><td>${l[4]}</td><td class="n">${l[2]<1000?l[2]+' ns':l[2]<1e6?l[2]/1000+' µs':l[2]/1e6+' ms'}</td><td>${human(l[2])}</td></tr>`).join('')}</table>
+  <h3 style="font-size:1rem;margin-top:14px">Race: fetch one value from each level</h3><div class="row"><button class="btn" id="race">Start the race</button><span class="note">Bars use a log scale, or the disk would not fit on the screen.</span></div><div class="bars" id="rb"></div>`;
+  $('#race').onclick=()=>{ $('#rb').innerHTML=L.map((l,i)=>`<div class="bar" style="grid-template-columns:150px 1fr"><span>${l[0]}</span><div class="trk"><i id="rr${i}" style="width:0;background:${['#B03A2E','#C2571A','#2E8B57','#2F6FDB','#4B5D9A'][i]};transition:width ${(Math.log10(l[2])+1.2)*0.6}s linear"></i></div></div>`).join('');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>L.forEach((l,i)=>{ $('#rr'+i).style.width=((Math.log10(l[2])+1.2)/8.2*100)+'%'; }))); };
+ }},
+q6:{tab:'Q6',sub:'Address & thrashing',title:'Logical address, page map table and thrashing',
+ intro:`<p><b>Part 1:</b> page number = address ÷ page size (whole part); displacement = the remainder.</p><p><b>Part 2:</b> look up the page in the page map table. Status 0 means "not in memory": page fault.</p><p><b>Part 3:</b> too few frames for a loop that jumps between pages → thrashing.</p><p class="think"><strong>Think:</strong> why does the memory manager check the <em>modified</em> bit before removing a page? Why prefer a page whose <em>referenced</em> bit is 0?</p>`,
+ mount(st){ const PS=1024; const PMT=[[0,1,0,1,7],[1,0,0,0,null],[2,1,1,0,3],[3,1,0,1,10],[4,0,0,0,null]];
+  st.innerHTML=`<h3 style="font-size:1rem">Part 1 · Address → page + displacement</h3>
+   <div class="row"><label>Page size <select id="ps">${[256,1024,2048,4096].map(s=>`<option ${s===1024?'selected':''}>${s}</option>`).join('')}</select> bytes</label><label>Logical address <input type="number" id="la" value="3200" min="0" max="99999" style="width:110px"></label><button class="btn ghost sm" id="laR">Random</button></div>
+   <div id="laOut"></div>
+   <h3 style="font-size:1rem;margin-top:16px">Part 2 · Page map table (page size 1024)</h3>
+   <div class="scroll"><table class="t" id="pmt"></table></div>
+   <div class="row" style="margin-top:8px"><span>Access address:</span>${[3200,1500,700,4600].map(a=>`<button class="btn sm ghost" data-acc="${a}">${a}</button>`).join('')}</div>
+   <ol class="steps" id="accOut"></ol>
+   <h3 style="font-size:1rem;margin-top:16px">Part 3 · A loop that jumps between pages</h3>
+   <div class="row"><label>Frames for this process <select id="tf"><option>1</option><option selected>2</option><option>3</option></select></label><label>Loop uses pages <select id="tp"><option value="X Y">X, Y</option><option value="X Y Z">X, Y, Z</option></select></label><button class="btn" id="tGo">Run 24 accesses</button></div>
+   <div class="thr" id="thr"></div><div id="tOut"></div>`;
+  function la(){ const ps=+$('#ps').value, a=Math.max(0,Math.floor(+$('#la').value||0)); const p=Math.floor(a/ps), d=a%ps;
+    $('#laOut').innerHTML=`<p class="big">${a} ÷ ${ps} = ${p} remainder ${d}</p><p>Page number = <b>${p}</b> · displacement = <b>${d}</b> &nbsp; <span class="note">check: ${p} × ${ps} + ${d} = ${p*ps+d}</span></p>`; }
+  $('#ps').onchange=la; $('#la').oninput=la; $('#laR').onclick=()=>{ const ps=+$('#ps').value; let a; do{a=Math.floor(Math.random()*6*ps);}while(a===2310); $('#la').value=a; la(); }; la();
+  function drawPMT(hl){ $('#pmt').innerHTML='<tr><th>Page</th><th>Status</th><th>Modified</th><th>Referenced</th><th>Frame</th></tr>'+PMT.map(r=>`<tr>${r.map((v,j)=>`<td class="${r[0]===hl?'cur':''}">${v===null?'–':v}</td>`).join('')}</tr>`).join(''); }
+  drawPMT(-1);
+  st.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{ const a=+b.dataset.acc, p=Math.floor(a/1024), d=a%1024, r=PMT[p]; drawPMT(p); let s=`<li>${a} ÷ 1024 → page <b>${p}</b>, displacement <b>${d}</b>.</li>`;
+    if(r[1]===1) s+=`<li>Page ${p}: status 1 → it is in frame <b>${r[4]}</b>. No fault.</li><li>Physical address = frame × page size + displacement = ${r[4]} × 1024 + ${d} = <b>${r[4]*1024+d}</b>.</li>`;
+    else { const cand=PMT.filter(x=>x[1]===1), v=cand.find(x=>x[3]===0)||cand[0];
+      s+=`<li class="bad">Page ${p}: status 0 → not in memory → <b>page fault</b> (interrupt).</li><li>Choose a page to remove: one with referenced bit 0 → page <b>${v[0]}</b> (frame ${v[4]}).</li>`+
+       (v[2]===1?`<li>Its modified bit is <b>1</b>: it was changed, so it must first be <b>written back to disk</b>.</li>`:`<li>Its modified bit is 0: no need to write it back.</li>`)+
+       `<li>Load page ${p} from disk into frame ${v[4]}.</li><li>Update the tables: page ${v[0]} → status 0, no frame; page ${p} → status 1, frame ${v[4]}, referenced 1; update the memory map table.</li>`; }
+    $('#accOut').innerHTML=s; });
+  $('#tGo').onclick=()=>{ const nf=+$('#tf').value, pages=$('#tp').value.split(' '); const refs=Array.from({length:24},(_,i)=>pages[i%pages.length]); const r=simulate(refs,nf,'LRU');
+    $('#thr').innerHTML=r.cols.map(c=>`<i title="${c.p}: ${c.fault?'fault':'hit'}" style="background:${c.fault?'var(--red)':'var(--green)'}"></i>`).join('');
+    const tail=r.cols.slice(12), tf=tail.filter(c=>c.fault).length, work=tail.length-tf, swapT=tf*1000; // 1 access = 1 unit, 1 fault = 1000 units
+    $('#tOut').innerHTML=`<p><b>${r.faults}</b> faults out of 24 accesses (red = fault, green = hit). Once the loop is running (last 12 accesses): <b>${tf}</b> fault${tf===1?'':'s'}.</p><div class="bar" style="grid-template-columns:150px 1fr"><span>Time running code</span><div class="trk"><i style="width:${Math.max(.5,work/(work+swapT)*100)}%;background:var(--green)"></i></div></div><div class="bar" style="grid-template-columns:150px 1fr"><span>Time swapping pages</span><div class="trk"><i style="width:${swapT/(work+swapT)*100}%;background:var(--red)"></i></div></div>${tf===tail.length?'<p style="color:var(--red);font-weight:700">Every access is a page fault: the process is thrashing.</p>':tf===0?'<p style="color:var(--green);font-weight:700">Enough frames for the loop: after the start, no more faults.</p>':''}<p class="note">A page fault takes about 1000 times longer than a normal access (disk vs RAM).</p>`; };
+ }}
+};
+const KEYS=Object.keys(LAB);
+$('#nav').innerHTML=KEYS.map((k,i)=>`<button role="tab" aria-selected="${i===0}" data-q="${k}"><b>${LAB[k].tab}</b><span>${LAB[k].sub}</span></button>`).join('');
+$$('[data-q]').forEach(b=>b.onclick=()=>load(b.dataset.q,true));
+function load(k,scroll){ const L=LAB[k]; $$('[data-q]').forEach(b=>b.setAttribute('aria-selected',b.dataset.q===k));
+  $('#lTitle').textContent=L.title; $('#lIntro').innerHTML=L.intro; L.mount($('#stage'));
+  sq=k; si=0; sStop(); sShow();
+  const i=KEYS.indexOf(k);
+  $('#pager').innerHTML=(i>0?`<button class="btn ghost" id="pv">Previous: ${LAB[KEYS[i-1]].tab}</button>`:'<span></span>')+(i<KEYS.length-1?`<button class="btn" id="nx">Next: ${LAB[KEYS[i+1]].tab}</button>`:'');
+  if(i>0) $('#pv').onclick=()=>load(KEYS[i-1],true); if(i<KEYS.length-1) $('#nx').onclick=()=>load(KEYS[i+1],true);
+  if(scroll){ const top=$('#pager').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top}); } }
+load('q1',false);
+</script>
+</body>
+</html>
+
+</body></html>
