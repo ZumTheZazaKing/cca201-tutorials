@@ -1,0 +1,269 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scheduling in Your Computer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --blue:#2F6FDB; --green:#2E8B57; --red:#C0392B; --amber:#B87410; --purple:#7B5EA7; --term:#14161C; --termtx:#D7F5DE;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.12;margin:0}
+.n,code,kbd{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:.98rem} nav button span{font-size:.8rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.st[hidden]{display:none!important}
+.st{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px}
+@media (max-width:860px){.st{grid-template-columns:1fr}}
+.left h2{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.where{color:var(--muted);margin:0 0 12px}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--soft);margin:0 6px 10px 0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.box h3{font-size:1rem;margin-bottom:6px}
+.os{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.os button{font:inherit;font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.os button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.box ol{margin:0;padding-left:20px} .box li{margin:4px 0}
+kbd{font-size:.85rem;background:var(--soft);border:1px solid var(--line);border-bottom-width:3px;border-radius:5px;padding:0 6px}
+code{font-size:.9rem;background:var(--soft);padding:1px 5px;border-radius:4px}
+.term{background:var(--term);color:var(--termtx);border-radius:10px;padding:10px 12px;font:500 .9rem "JetBrains Mono",monospace;white-space:pre-wrap;overflow-x:auto;position:relative;margin-top:8px}
+.term .c{color:#8C93A6}
+.copy{position:absolute;top:6px;right:6px;font:700 .75rem "Atkinson Hyperlegible",sans-serif;padding:2px 8px;border-radius:6px;border:1px solid #444;background:#2A2D36;color:#fff;cursor:pointer}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:10px 14px;border-radius:0 8px 8px 0}
+.try{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:16px;min-width:0}
+.try h3{font-size:1.05rem;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input[type=text],input[type=number],select{font:inherit;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn{font:inherit;font-weight:700;font-size:.92rem;padding:7px 12px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:wait}
+table.t{border-collapse:collapse;font-size:.95rem;width:100%}
+table.t td,table.t th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{font-size:.78rem;color:var(--muted)}
+.big{font:700 1.35rem "JetBrains Mono",monospace;word-break:break-all}
+.bits{font:700 1.05rem "JetBrains Mono",monospace;word-break:break-all}
+.bits .pg{color:var(--blue)} .bits .off{color:var(--amber)}
+.bars{display:grid;gap:6px;margin-top:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 90px;gap:8px;align-items:center;font-size:.9rem}
+.trk{height:18px;background:var(--soft);border-radius:9px;overflow:hidden}
+.trk i{display:block;height:100%;border-radius:9px;transition:width .6s}
+.note{font-size:.88rem;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:160px;border-bottom:2px solid var(--ink);border-left:2px solid var(--ink);padding:0 4px;margin:8px 0 4px}
+.chart div{flex:1;border-radius:4px 4px 0 0;min-height:2px;position:relative}
+.chart div span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:.72rem;color:var(--muted)}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Scheduling in Your Computer</h1>
+  <p>Operating Systems, Tutorial 4 in practice. Processes, threads and the CPU scheduler are working on your own computer right now. In each station, look on your computer, then use the tool on the right.</p>
+</header>
+<nav role="tablist" aria-label="Stations" id="nav"></nav>
+<div class="pager" id="pager"></div>
+
+<!-- 1 processes and threads -->
+<section class="st" data-t="1 · Processes & threads" data-s="Count them for real">
+  <div class="left">
+    <h2>How many processes and threads are running?</h2>
+    <p class="where">Every program you open is at least one process. Inside each process, several threads work at the same time.</p>
+    <span class="tag">Q1 · process vs thread</span><span class="tag">Q5 · thread switch</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="pt"><button class="on" data-v="w">Windows</button><button data-v="m">Mac</button><button data-v="c">Chrome</button></div>
+      <div data-for="pt" data-v="w">
+        <ol><li>Press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Esc</kbd> (Task Manager). Click <b>More details</b> if the window is small.</li>
+        <li>Open the <b>Performance</b> tab → <b>CPU</b>. Under the graph, read <b>Processes</b> and <b>Threads</b>.</li>
+        <li>Open the <b>Details</b> tab. Right-click a column title (for example <b>Name</b>) → <b>Select columns</b> → tick <b>Threads</b> → OK.</li>
+        <li>Click the <b>Threads</b> title to sort. Which program has the most threads?</li></ol>
+        <p class="note">On a French Windows: Performances → Processeur → Processus / Threads. Détails → clic droit sur un titre → Sélectionner des colonnes → Threads.</p>
+        <p style="margin:10px 0 6px">Or in <b>PowerShell</b>: the 10 processes with the most threads.</p>
+        <div class="term"><button class="copy">Copy</button>Get-Process | Sort-Object {$_.Threads.Count} -Descending | Select-Object -First 10 Name, Id, @{n='Threads';e={$_.Threads.Count}}</div>
+      </div>
+      <div data-for="pt" data-v="m" hidden>
+        <ol><li>Open <b>Activity Monitor</b> → <b>CPU</b> tab. At the bottom, read <b>Threads</b> and <b>Processes</b>.</li>
+        <li>Menu <b>View → Columns</b> → tick <b>Threads</b>. Sort by it.</li></ol>
+        <div class="term"><button class="copy">Copy</button><span class="c"># Terminal: threads of each process</span>
+ps -M -A | wc -l</div>
+      </div>
+      <div data-for="pt" data-v="c" hidden>
+        <ol><li>In Chrome, press <kbd>Shift</kbd> <kbd>Esc</kbd> (Windows) or menu ⋮ → <b>More tools → Task manager</b>.</li>
+        <li>Each tab is its own line with its own <b>Process ID</b>: one tab = one process.</li>
+        <li>Open 3 tabs. Select one tab in the list and click <b>End process</b>. Only that tab shows "Aw, Snap!". The others keep working.</li></ol>
+      </div>
+    </div>
+    <p class="think"><strong>Think:</strong> why does killing one Chrome tab not kill the others? And why are there many more threads than processes?</p>
+  </div>
+  <div class="try"><h3>Write what you found</h3>
+    <div class="row"><label>Processes <input type="number" id="pP" min="1" value="180" style="width:7em"></label><label>Threads <input type="number" id="pT" min="1" value="2600" style="width:7em"></label></div>
+    <div class="row"><label>Chrome tabs open <input type="number" id="pC" min="0" value="4" style="width:5em"></label><label>Chrome lines in Shift+Esc <input type="number" id="pL" min="0" value="9" style="width:5em"></label></div>
+    <div id="pOut"></div>
+    <p class="note">The values shown are examples. Replace them with the numbers from your computer.</p>
+  </div>
+</section>
+
+<!-- 2 preemption -->
+<section class="st" hidden data-t="2 · Preemption" data-s="Freeze a tab, not the PC">
+  <div class="left">
+    <h2>Who can be interrupted?</h2>
+    <p class="where">Windows, macOS and Linux are <b>preemptive</b>: they can take the CPU away from a program. But inside one Chrome tab, JavaScript runs one task to the end before the next one starts.</p>
+    <span class="tag">Q2 · preemptive vs non-preemptive</span><span class="tag">Q3b · time slice</span><span class="tag">Q4 · response time</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Play some music or a YouTube video in another tab.</li>
+      <li>Open a new tab, press <kbd>F12</kbd> → <b>Console</b>. Paste the line below and press Enter. (If Chrome asks, type <code>allow pasting</code> first.)</li>
+      <li>For 10 seconds, that tab is frozen: you cannot click or scroll it.</li>
+      <li>But the music continues and your mouse still moves. The operating system keeps <b>interrupting</b> the busy tab to give the CPU to others.</li></ol>
+      <div class="term"><button class="copy">Copy</button>let t = Date.now(); while (Date.now() - t < 10000) {}</div>
+      <p class="note" style="margin-top:8px">Open Task Manager → Performance → CPU while it runs: one core goes up to 100%.</p>
+    </div>
+    <p class="think"><strong>Think:</strong> which part of this experiment is non-preemptive, and which part is preemptive? Which one do you want for a computer people click on?</p>
+  </div>
+  <div class="try"><h3>Try it here: one long job vs small slices</h3>
+    <p>The ball moves only when this page gets the CPU. Run a 3-second job in two ways.</p>
+    <canvas id="ball" width="520" height="70" style="width:100%;max-width:520px;height:auto;border:2px solid var(--line);border-radius:10px;background:var(--soft)"></canvas>
+    <div class="row" style="margin-top:10px"><button class="btn" id="b1">Run 3 s without stopping</button><button class="btn ghost" id="b2">Run 3 s in small slices</button></div>
+    <div id="bOut" class="note"></div>
+  </div>
+</section>
+
+<!-- 3 context switches -->
+<section class="st" hidden data-t="3 · The scheduler at work" data-s="Context switches per second">
+  <div class="left">
+    <h2>How often does the scheduler switch?</h2>
+    <p class="where">Each time the CPU moves from one thread to another, it is a <b>context switch</b>. Your computer does thousands every second.</p>
+    <span class="tag">Q5 · PCB and TCB</span><span class="tag">Q4 · cost of switching</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="cs"><button class="on" data-v="w">Windows</button><button data-v="m">Mac / Linux</button></div>
+      <div data-for="cs" data-v="w"><p style="margin:0 0 6px">Open <b>PowerShell</b> and run:</p>
+      <div class="term"><button class="copy">Copy</button>Get-Counter '\System\Context Switches/sec' -SampleInterval 1 -MaxSamples 5</div>
+      <p class="note">On a French Windows the counter name is in French: <code>Get-Counter '\Système\Changements de contexte/s'</code>.</p>
+      <p style="margin:10px 0 6px">See priorities: Task Manager → <b>Details</b> → right-click a process → <b>Set priority</b>. Only look, do not change it.</p></div>
+      <div data-for="cs" data-v="m" hidden><div class="term"><button class="copy">Copy</button><span class="c"># Linux: column "cs" = context switches per second</span>
+vmstat 1 5
+<span class="c"># Mac: column "csw"</span>
+top -l 2 -s 1 | grep -i "csw"</div></div>
+    </div>
+    <p class="think"><strong>Think:</strong> a switch between two threads of the same process is cheaper than between two processes. Why? (Hint: what do threads share?)</p>
+  </div>
+  <div class="try"><h3>Try it here: what does that number mean?</h3>
+    <div class="row"><label>Context switches per second <input type="number" id="cN" min="1" value="12000" style="width:8em"></label></div>
+    <div id="cOut"></div>
+  </div>
+</section>
+
+<!-- 4 cpu vs io bound -->
+<section class="st" hidden data-t="4 · CPU-bound or I/O-bound?" data-s="See the two kinds of jobs">
+  <div class="left">
+    <h2>Which jobs use the CPU, which use the disk?</h2>
+    <p class="where">A CPU-bound job calculates a lot. An I/O-bound job mostly waits for the disk, the network or you. A good system keeps both kinds of work going.</p>
+    <span class="tag">Q3a · balancing the mix</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Open Task Manager → <b>Performance</b>. Keep <b>CPU</b> and <b>Disk</b> (or Ethernet / Wi-Fi) visible.</li>
+      <li>Copy a big folder to a USB stick, or download a big file: watch which graph goes up.</li>
+      <li>Now run the busy loop from station 2 in a Chrome tab: watch which graph goes up.</li>
+      <li>Do both at the same time. Does the copy slow down?</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> if you only ran CPU-heavy work, what would the disk graph look like? Which manager decides what enters the system?</p>
+  </div>
+  <div class="try"><h3>Sort these jobs</h3>
+    <p>Pick a type for each job, then check.</p>
+    <div id="jOut"></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="jC">Check</button><span id="jS" class="note"></span></div>
+  </div>
+</section>
+
+<!-- 5 too many programs -->
+<section class="st" hidden data-t="5 · Too many programs" data-s="When fewer is faster">
+  <div class="left">
+    <h2>When fewer programs finish faster</h2>
+    <p class="where">With too many programs for the RAM, the computer spends its time moving pages to and from the disk. Chrome’s Memory Saver puts unused tabs to sleep to stop this.</p>
+    <span class="tag">Q6 · middle-level scheduler</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>In Chrome, open <code>chrome://settings/performance</code> and look at <b>Memory Saver</b>.</li>
+      <li>Open <code>chrome://discards</code>: the list shows which tabs Chrome can put to sleep or already did.</li>
+      <li>On Windows, press <kbd>Win</kbd> + <kbd>R</kbd>, type <code>resmon</code> → <b>Memory</b> tab: watch <b>Hard Faults/sec</b> while you open many heavy apps.</li>
+      <li>Close half of the apps and watch the number fall.</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> a sleeping tab still exists, but it is out of memory. Which scheduler does the same thing with jobs? Why do the other tabs feel faster?</p>
+  </div>
+  <div class="try"><h3>Your tabs</h3>
+    <div class="row"><label>Open tabs <input type="range" id="tN" min="1" max="60" value="35"> <b id="tV">35</b></label><label>RAM <select id="tR"><option value="4">4 GB</option><option value="8" selected>8 GB</option><option value="16">16 GB</option></select></label></div>
+    <div id="tOut"></div>
+    <p class="note">Rough model: about 150 MB per tab and 3 GB for Windows and other apps.</p>
+  </div>
+</section>
+<footer>Practical companion for Tutorial 4. The numbers you measure are yours: they change with every computer.</footer>
+</div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST=$$('.st');
+$('#nav').innerHTML=ST.map((s,i)=>`<button role="tab" aria-selected="${i===0}" data-i="${i}"><b>${s.dataset.t}</b><span>${s.dataset.s}</span></button>`).join('');
+function show(i,scroll){ ST.forEach((s,k)=>s.hidden=k!==i); $$('[data-i]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.i===i));
+  $('#pager').innerHTML=(i>0?`<button class="btn ghost" id="pv">Previous: ${ST[i-1].dataset.t}</button>`:'<span></span>')+(i<ST.length-1?`<button class="btn" id="nx">Next: ${ST[i+1].dataset.t}</button>`:'');
+  if(i>0) $('#pv').onclick=()=>show(i-1,true); if(i<ST.length-1) $('#nx').onclick=()=>show(i+1,true);
+  if(scroll){const top=$('#pager').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top});} }
+$$('[data-i]').forEach(b=>b.onclick=()=>show(+b.dataset.i,true)); show(0,false);
+$$('[data-os]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); $$(`[data-for="${g.dataset.os}"]`).forEach(o=>o.hidden=o.dataset.v!==b.dataset.v); }));
+$$('.copy').forEach(b=>b.onclick=()=>{ const t=b.parentElement.innerText.replace(/^Copy\n?/,'').split('\n').filter(l=>!l.trim().startsWith('#')).join('\n').trim(); navigator.clipboard?.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200);}).catch(()=>{}); });
+
+
+// 1 counts
+function pc(){const P=+$('#pP').value||1,T=+$('#pT').value||0,C=+$('#pC').value||0,L=+$('#pL').value||0;
+ $('#pOut').innerHTML=`<p class="big">${(T/P).toFixed(1)} threads per process</p><p>${T} threads share only a few CPU cores. The scheduler gives each one a short turn.</p>`+
+ (C?`<p>Chrome shows <b>${L}</b> lines for <b>${C}</b> tabs: each tab is a process, plus a few extra ones (browser, GPU, network, extensions).</p>`:'');}
+['#pP','#pT','#pC','#pL'].forEach(s=>$(s).oninput=pc);pc();
+// 2 ball
+const cv=$('#ball'),cx=cv.getContext('2d');let bx=10,dx=4;
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#2F6FDB'}
+function frame(){cx.clearRect(0,0,cv.width,cv.height);bx+=dx;if(bx>cv.width-20||bx<20)dx=-dx;cx.fillStyle=col('--blue');cx.beginPath();cx.arc(bx,35,16,0,7);cx.fill();requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+$('#b1').onclick=()=>{$('#bOut').textContent='Running… the ball is stuck because this page never gives the CPU back.';setTimeout(()=>{const t=performance.now();while(performance.now()-t<3000){}
+ $('#bOut').textContent='Done. For 3 seconds the ball froze: the job kept the CPU until it finished, like non-preemptive scheduling.'},50)};
+$('#b2').onclick=()=>{const end=performance.now()+3000;$('#bOut').textContent='Running in slices of 10 ms…';
+ (function slice(){const t=performance.now();while(performance.now()-t<10){} if(performance.now()<end)setTimeout(slice,0);else $('#bOut').textContent='Done. Same 3 seconds of work, but the ball kept moving: the job gave the CPU back every 10 ms, like a time slice in preemptive scheduling.'})()};
+// 3 context switches
+function cs(){const n=+$('#cN').value||0;const ms=n?1000/n:0;
+ $('#cOut').innerHTML=`<p class="big">${(n/1000).toFixed(1)} switches per millisecond</p><p>On average, the CPU changes thread every <b>${ms<1?(ms*1000).toFixed(0)+' µs':ms.toFixed(2)+' ms'}</b>.</p><p>A key press feels instant because your program gets the CPU back long before you could notice a delay (about 100 ms).</p>`}
+$('#cN').oninput=cs;cs();
+// 4 sort jobs
+const JOBS=[['Exporting a 4K video','c'],['Copying photos to a USB stick','i'],['Typing in Word','i'],['Training a neural network','c'],['Downloading a game','i'],['Compressing a big ZIP file','c']];
+$('#jOut').innerHTML=JOBS.map((j,k)=>`<div class="row" style="margin-bottom:6px"><span style="flex:1;min-width:12em">${j[0]}</span><select id="jq${k}"><option value="">choose</option><option value="c">CPU-bound</option><option value="i">I/O-bound</option></select></div>`).join('');
+$('#jC').onclick=()=>{let ok=0;JOBS.forEach((j,k)=>{const s=$('#jq'+k);s.style.borderColor=s.value===''?'':(s.value===j[1]?'var(--green)':'var(--red)');if(s.value===j[1])ok++});$('#jS').textContent=`${ok} of ${JOBS.length} right. Green = right, red = think again.`};
+// 5 tabs
+function tb(){const n=+$('#tN').value,R=+$('#tR').value;$('#tV').textContent=n;const need=3+n*0.15,p=Math.min(100,need/R*100);
+ $('#tOut').innerHTML=`<div class="bar"><span>Memory needed</span><div class="trk"><i style="width:${p}%;background:${need>R?'var(--red)':'var(--green)'}"></i></div><span><b>${need.toFixed(1)}</b> / ${R} GB</span></div>`+
+ (need>R?`<p>Too much: about <b>${Math.ceil((need-R)/0.15)}</b> tabs must go to sleep (or to the disk) so the others stay fast.</p>`:`<p>Everything fits in RAM: no need to put tabs to sleep.</p>`)}
+$('#tN').oninput=tb;$('#tR').onchange=tb;tb();
+</script>
+</body>
+</html>
+</body></html>

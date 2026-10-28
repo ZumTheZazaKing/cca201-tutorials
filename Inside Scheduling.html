@@ -1,0 +1,271 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inside Scheduling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EFF1EC; --panel:#FFFFFF; --ink:#1E2622; --muted:#59645E; --line:#CDD4CE; --soft:#E4E9E4;
+  --cpu:#1F7A5A; --hl:#FFF1C9; --bad:#C0392B; --ok:#1F7A5A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+    --cpu:#4CC392; --hl:#3A3420; --bad:#EE6B5E; --ok:#4CC392; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+  --cpu:#4CC392; --hl:#3A3420; --bad:#EE6B5E; --ok:#4CC392; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.1;margin:0}
+.n{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 60px max(16px,env(safe-area-inset-left,0px))}
+header{margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:1.05rem} nav button span{font-size:.82rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--cpu);outline-offset:2px}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px}
+@media (max-width:860px){.lab{grid-template-columns:1fr}}
+.intro h2{font-size:1.6rem;font-weight:800;margin-bottom:10px}
+.intro p{margin:0 0 12px;max-width:46ch}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.box ol,.box ul{margin:6px 0 0;padding-left:20px} .box li{margin:3px 0}
+.life{border-left:4px solid var(--cpu);border-radius:0 10px 10px 0}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:12px 14px;border-radius:0 8px 8px 0}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.btn{font:inherit;font-weight:700;font-size:.95rem;padding:8px 14px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.on{background:var(--cpu);border-color:var(--cpu);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.say{min-height:3.2em;font-size:1.08rem;background:var(--hl);border-radius:8px;padding:8px 12px;margin:10px 0}
+.scroll{overflow-x:auto}
+table.t{border-collapse:collapse;font-size:.95rem}
+table.t td,table.t th{padding:5px 10px;border:1px solid var(--line);text-align:center}
+table.t th{font-size:.8rem;color:var(--muted);background:var(--soft)}
+table.t tr.hl td{background:var(--hl)}
+table.t input{width:4.2em;font:700 .95rem "JetBrains Mono",monospace;padding:2px 4px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);text-align:center}
+table.t input.good{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,var(--panel))}
+table.t input.badv{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,var(--panel))}
+.gw{position:relative;margin:8px 4px 40px;min-width:520px}
+.gantt{position:relative;height:50px;border:2px solid var(--ink);border-radius:6px;background:var(--soft)}
+.seg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#fff;border-right:2px solid var(--panel);overflow:hidden}
+@keyframes grow{from{opacity:.3}to{opacity:1}}
+.seg b{font:700 1rem "JetBrains Mono",monospace}
+.ticks,.arr{position:relative;height:18px}
+.ticks span,.arr span{position:absolute;transform:translateX(-50%);font:700 .78rem "JetBrains Mono",monospace;white-space:nowrap}
+.arr span{font-size:.72rem}
+.q{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:34px}
+.pill{display:inline-block;border-radius:6px;padding:3px 10px;font-weight:700;color:#fff;font-size:.9rem}
+.tabs{display:flex;gap:10px;flex-wrap:wrap}
+.tab{border:2px solid var(--line);border-radius:10px;padding:10px;width:200px;background:var(--panel)}
+.tab h4{margin:0 0 6px;font-size:.95rem}
+.tab.dead{opacity:.5;border-style:dashed}
+.thr{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.thr span{font-size:.75rem;border-radius:5px;padding:2px 6px;background:var(--soft);border:1px solid var(--line)}
+.mem{font:700 .75rem "JetBrains Mono",monospace;border:2px dashed var(--cpu);border-radius:6px;padding:4px;text-align:center;color:var(--cpu)}
+.tabs .tab.dead .mem{border-color:var(--bad);color:var(--bad)}
+.legend{font-size:.85rem;color:var(--muted)}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+@media (prefers-reduced-motion: reduce){.seg{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Inside Scheduling</h1>
+  <p>CCA201 / CST232 Operating Systems, Tutorial 4. Each tab explains one idea with something you use every day, then lets you try it live. The examples are not the tutorial answers: use them to think, then answer the tutorial questions yourself.</p>
+</header>
+<nav role="tablist" aria-label="Tutorial 4 questions" id="nav"></nav>
+<section class="lab">
+  <div class="intro">
+    <h2 id="qTitle"></h2>
+    <div class="box life"><b>In real life</b><div id="qLife"></div></div>
+    <div class="box"><b>The method</b><ol id="qHow"></ol></div>
+    <p class="think" id="qThink"></p>
+  </div>
+  <div class="stage" id="stage"></div>
+</section>
+<footer>Companion for Tutorial 4 (updated version). The demos help you think; the answers are yours to write.</footer>
+</div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const COL=['#2F6FDB','#C2571A','#1F7A5A','#7B5EA7','#B5476B','#9A6A00','#3A8C9E'];
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// ---------- scheduler (unit-step; same rules as the TA key) ----------
+function sched(jobs,alg){
+  const rem={},arr={},burst={},ord={};jobs.forEach((j,i)=>{rem[j.n]=j.c;arr[j.n]=j.a;burst[j.n]=j.c;ord[j.n]=i});
+  let t=0,cur=null;const segs=[],first={},fin={},ev=[];
+  const key={FCFS:n=>[arr[n],ord[n]],SJN:n=>[burst[n],arr[n],ord[n]],SRT:n=>[rem[n],arr[n],ord[n]]}[alg];
+  const lt=(x,y)=>{const a=key(x),b=key(y);for(let i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]<b[i]}return false};
+  let guard=0;
+  while(Object.keys(fin).length<jobs.length&&guard++<1000){
+    const ready=jobs.map(j=>j.n).filter(n=>arr[n]<=t&&!(n in fin));
+    if(!ready.length){t++;continue}
+    const best=ready.reduce((a,b)=>lt(b,a)?b:a);
+    const prev=cur;
+    if(cur===null||cur in fin) cur=best; else if(alg==='SRT'&&rem[best]<rem[cur]) cur=best;
+    if(!segs.length||segs[at(segs)].n!==cur||segs[at(segs)].e!==t){ev.push({t,run:cur,prev:(prev!==null&&!(prev in fin))?prev:null,ready:Object.fromEntries(ready.map(n=>[n,rem[n]]))});segs.push({n:cur,s:t,e:t})}
+    if(!(cur in first)) first[cur]=t;
+    rem[cur]--;t++;segs[at(segs)].e=t;if(rem[cur]===0)fin[cur]=t;
+  }
+  return {segs,first,fin,ev,total:t};
+}
+function at(a){return a.length-1}
+const TUT=['0,11|2,19|5,3|8,1|11,9|15,6','0,4|1,11|2,4|4,1|5,9|7,4|8,2'];
+function newJobs(k){
+  let s,jobs;do{const n=k||rnd(5,6);let a=0;jobs=[];for(let i=0;i<n;i++){jobs.push({n:'PQRSTUV'[i],a,c:rnd(1,i===1?14:9)});a+=rnd(1,4)}
+    s=jobs.map(j=>j.a+','+j.c).join('|')}while(TUT.includes(s));
+  jobs.forEach((j,i)=>j.col=COL[i]);return jobs;
+}
+function gantt(jobs,res,upto){
+  const T=res.total,cm=Object.fromEntries(jobs.map(j=>[j.n,j.col]));let h='<div class="gw"><div class="gantt">';
+  const marks=new Set([0]);
+  res.segs.forEach(g=>{if(g.s>=upto)return;const e=Math.min(g.e,upto);marks.add(g.s);marks.add(e);
+    h+=`<div class="seg" style="left:${g.s/T*100}%;width:${(e-g.s)/T*100}%;background:${cm[g.n]}"><b>${g.n}</b></div>`});
+  let lastM=-1e9;const ms=[...marks].sort((a,b)=>a-b).filter(m=>{if(m-lastM<T*0.045&&m!==T)return false;lastM=m;return true});h+='</div><div class="ticks">'+ms.map(m=>`<span style="left:${m/T*100}%">${m}</span>`).join('')+'</div>';
+  h+='<div class="arr">'+jobs.map(j=>`<span style="left:${j.a/T*100}%;color:${j.col}">▲${j.n}</span>`).join('')+'</div></div>';
+  return h;
+}
+// ---------- questions ----------
+const Q=[
+ {tab:'Q1',sub:'Process vs thread',title:'Process or thread?',
+  life:'In Chrome, every tab is a <b>process</b>. Inside the YouTube tab, small jobs work together: one draws the page, one plays the video, one loads the comments. Those are <b>threads</b>.',
+  how:['A process = a program running, with its <b>own</b> memory.','A thread = a part of a process. Threads of one process <b>share</b> its memory.','Switching between threads is fast. Switching between processes is slow.','Ask: who decides which thread uses the CPU right now?'],
+  think:'Crash one tab below. Why do the other tabs keep working? Then think: which scheduler picks the next thread to run on the CPU?',
+  run:procDemo},
+ {tab:'Q2',sub:'Preemptive?',title:'Can the CPU be taken away?',
+  life:'<b>Preemptive</b>: a phone call pauses your game right away. <b>Non-preemptive</b>: your one-page print waits until the 200-page print in front of it is finished.',
+  how:['Preemptive: the running job can be stopped before it ends.','Non-preemptive: the running job keeps the CPU until it ends.','Run the same jobs both ways and watch the waiting time of the short job.'],
+  think:'You click a button and the computer must react at once. Which policy feels better? And for a long payroll calculation at night?',
+  run:preDemo},
+ {tab:'Q3',sub:'Two schedulers',title:'Keeping the CPU and the devices busy',
+  life:'A restaurant: the <b>door manager</b> decides which groups come in (a good mix of quick coffee orders and big dinners). Inside, the <b>waiter</b> makes sure one big table does not keep the cook busy all evening.',
+  how:['CPU-bound job: long CPU work, little I/O (video encoding). I/O-bound job: short CPU work, much I/O (copying files, typing).','Choose the mix that enters the system, and watch the CPU and the devices.','Then let one CPU-bound job run: what happens with and without a time slice?'],
+  think:'Which manager acts BEFORE jobs enter the ready queue? Which one acts WHILE a job is running, and with which tool?',
+  run:mixDemo},
+ {tab:'Q4',sub:'Busy CPU vs fast answers',title:'Busy CPU or fast answers?',
+  life:'A bus that never stops is 100% efficient for the driver, but the people at the bus stops wait a long time. Short stops cost a little time and make everyone happier.',
+  how:['Look at the burst lengths: are most CPU bursts short or long?','Run one long job and several short jobs without interruption, then with time slices.','Compare the average waiting time and the CPU time lost in context switches.'],
+  think:'Why can a CPU at 100% still feel slow to users? Why is preemption worth its small extra cost when most bursts are short?',
+  run:effDemo},
+ {tab:'Q5',sub:'Switch cost',title:'What must be saved at a switch?',
+  life:'Changing desk in the same office is quick: same building, same files. Moving to another office building means packing everything. Threads of one process share the building.',
+  how:['A context switch saves the state of the running work, then loads the next one.','Compare a switch between two threads of one tab with a switch between two different tabs.','Count what must be saved and loaded each time.'],
+  think:'What do two threads of the same process already share? And how does a thread know which process it belongs to and which threads it created?',
+  run:switchDemo},
+ {tab:'Q6',sub:'Too many jobs',title:'Fewer jobs, faster finish?',
+  life:'Chrome’s Memory Saver puts tabs you are not using to sleep, so the tabs you use run faster. With 80 tabs open and little RAM, everything slows down.',
+  how:['Add jobs into memory and watch how much real work gets done.','Past a point, jobs wait for memory and disk more than they compute.','Press the button to swap some jobs out to the disk.'],
+  think:'Which scheduler takes jobs out of memory? Why does removing jobs make the others finish faster?',
+  run:midDemo}
+];
+$('#nav').innerHTML=Q.map((q,i)=>`<button role="tab" aria-selected="${i===0}" data-q="${i}"><b>${q.tab}</b><span>${q.sub}</span></button>`).join('');
+$$('[data-q]').forEach(b=>b.onclick=()=>load(+b.dataset.q));
+let timers=[];
+function load(i){timers.forEach(clearInterval);timers=[];const q=Q[i];$$('[data-q]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.q===i));
+  $('#qTitle').textContent=q.title;$('#qLife').innerHTML=q.life;$('#qHow').innerHTML=q.how.map(x=>`<li>${x}</li>`).join('');$('#qThink').textContent=q.think;
+  $('#stage').innerHTML='';q.run($('#stage'));try{localStorage.setItem('isched',i)}catch(e){}}
+
+function procDemo(st){
+  const tabs=[{n:'YouTube',th:['draw page','play video','load comments']},{n:'Gmail',th:['draw page','check new mail']},{n:'Google Docs',th:['draw page','spell check','auto-save']}];
+  st.innerHTML=`<div class="row"><b>Chrome with 3 tabs</b><span class="legend">Each card = 1 process. Grey labels = its threads. Dashed box = its own memory.</span></div><div class="tabs" id="tabs"></div><div class="say" id="say">Press "Crash" on one tab.</div>`;
+  const draw=()=>{$('#tabs').innerHTML=tabs.map((t,i)=>`<div class="tab ${t.dead?'dead':''}"><h4>${t.n}</h4><div class="thr">${t.th.map(x=>`<span>${x}</span>`).join('')}</div><div class="mem">${t.dead?'memory freed':'own memory'}</div><div class="row" style="margin:8px 0 0"><button class="btn ghost" data-k="${i}">${t.dead?'Reload':'Crash'}</button></div></div>`).join('');
+    $$('[data-k]').forEach(b=>b.onclick=()=>{const t=tabs[+b.dataset.k];t.dead=!t.dead;draw();
+      $('#say').textContent=t.dead?`"${t.n}" crashed. Its threads stop together, because they share one memory. The other tabs are separate processes, so they keep working.`:`"${t.n}" reloaded as a new process.`})};
+  draw();
+}
+function preDemo(st){
+  const jobs=[{n:'Long',a:0,c:8,col:COL[1]},{n:'Click',a:2,c:1,col:COL[0]}];
+  st.innerHTML=`<div class="row"><button class="btn on" data-m="non">Non-preemptive</button><button class="btn ghost" data-m="pre">Preemptive</button></div><div class="scroll" id="g"></div><div class="say" id="say"></div>`;
+  const show=m=>{const r=sched(jobs.map(j=>({...j})),m==='pre'?'SRT':'FCFS');$('#g').innerHTML=gantt(jobs,r,r.total);
+    $$('[data-m]').forEach(b=>b.className='btn '+(b.dataset.m===m?'on':'ghost'));
+    const w=r.first.Click-2;$('#say').textContent=m==='pre'?`"Click" arrives at 2 and gets the CPU at once: it waits ${w}. "Long" is paused and continues later.`:`"Click" arrives at 2 but must wait until "Long" ends at 8: it waits ${w}.`};
+  $$('[data-m]').forEach(b=>b.onclick=()=>show(b.dataset.m));show('non');
+}
+function bar(label,v,col){return `<div style="display:grid;grid-template-columns:150px 1fr 60px;gap:8px;align-items:center;margin:6px 0"><span>${label}</span><div style="height:20px;background:var(--soft);border-radius:10px;overflow:hidden"><i style="display:block;height:100%;width:${v}%;background:${col};transition:width .5s"></i></div><b class="n">${Math.round(v)}%</b></div>`}
+function rr(jobs,q,cost){ // round robin, unit time; q=0 → non-preemptive FCFS. cost = switch time
+  const rem={},arr={},ord={};jobs.forEach((j,i)=>{rem[j.n]=j.c;arr[j.n]=j.a;ord[j.n]=i});
+  let t=0,queue=[],cur=null,slice=0,segs=[],fin={},first={},sw=0,seen=new Set();
+  const admit=()=>jobs.forEach(j=>{if(j.a<=t&&!seen.has(j.n)){seen.add(j.n);queue.push(j.n)}});
+  admit();let guard=0;
+  while(Object.keys(fin).length<jobs.length&&guard++<2000){
+    if(cur===null){if(!queue.length){t++;admit();continue}cur=queue.shift();slice=0;if(segs.length){sw++;t+=cost;admit()}segs.push({n:cur,s:t,e:t});if(!(cur in first))first[cur]=t}
+    rem[cur]--;t++;slice++;segs[segs.length-1].e=t;admit();
+    if(rem[cur]===0){fin[cur]=t;cur=null}else if(q&&slice>=q&&queue.length){queue.push(cur);cur=null}
+  }
+  return {segs,fin,first,sw,total:t};
+}
+function mixDemo(st){
+  st.innerHTML=`<div class="row"><b>1 · Who enters the system?</b></div>
+  <div class="row"><label>CPU-bound jobs <input type="range" id="mc" min="0" max="6" value="5"> <b id="mcv">5</b></label><label>I/O-bound jobs <input type="range" id="mi" min="0" max="6" value="0"> <b id="miv">0</b></label></div>
+  <div id="mb"></div><div class="say" id="ms"></div>
+  <div class="row" style="margin-top:16px"><b>2 · One job never asks for I/O</b><button class="btn on" data-ts="off">No time slice</button><button class="btn ghost" data-ts="on">Time slice = 3</button></div>
+  <div class="scroll" id="mg"></div><div class="say" id="ms2"></div>`;
+  const upd=()=>{const c=+$('#mc').value,i=+$('#mi').value;$('#mcv').textContent=c;$('#miv').textContent=i;
+    const cpu=Math.min(100,c*40+i*12),io=Math.min(100,i*28+c*4);
+    $('#mb').innerHTML=bar('CPU busy',cpu,'var(--cpu)')+bar('Disk / devices busy',io,'#2F6FDB');
+    $('#ms').textContent=io<25&&cpu>85?'The CPU is full but the devices sit idle: the jobs that entered are almost all CPU-bound. Throughput drops.':cpu<40?'The CPU is often idle: not enough CPU work came in.':'A good mix: the CPU and the devices both work.'};
+  $('#mc').oninput=upd;$('#mi').oninput=upd;upd();
+  const jobs=[{n:'Big',a:0,c:10,col:COL[1]},{n:'IO1',a:1,c:1,col:COL[0]},{n:'IO2',a:2,c:1,col:COL[2]},{n:'IO3',a:3,c:1,col:COL[3]}];
+  const ts=m=>{const r=rr(jobs,m==='on'?3:0,0);$('#mg').innerHTML=gantt(jobs,r,r.total);$$('[data-ts]').forEach(b=>b.className='btn '+(b.dataset.ts===m?'on':'ghost'));
+    const w=['IO1','IO2','IO3'].map(n=>r.first[n]-jobs.find(j=>j.n===n).a);
+    $('#ms2').textContent=(m==='on'?'Every 3 units an interrupt stops "Big"; the short I/O jobs get the CPU and go back to their devices.':'"Big" keeps the CPU to the end. The I/O jobs wait.')+` Waiting of IO1, IO2, IO3: ${w.join(', ')}.`};
+  $$('[data-ts]').forEach(b=>b.onclick=()=>ts(b.dataset.ts));ts('off');
+}
+function effDemo(st){
+  st.innerHTML=`<div class="row"><b>1 · How long are CPU bursts?</b><button class="btn ghost" id="eh">New sample</button></div><div id="hist"></div>
+  <div class="row" style="margin-top:14px"><b>2 · One long job, five short jobs</b></div>
+  <div class="row"><label>Time slice <select id="eq"><option value="0">none (non-preemptive)</option><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option></select></label><label>Context switch costs <select id="ec"><option value="0">0</option><option value="0.5" selected>0.5</option><option value="1">1</option></select></label></div>
+  <div class="scroll" id="eg"></div><div id="eb"></div><div class="say" id="es"></div>`;
+  const hist=()=>{const b=Array(10).fill(0);for(let i=0;i<300;i++){const x=Math.min(9,Math.floor(-Math.log(1-Math.random())*1.6));b[x]++}const m=Math.max(...b);
+    $('#hist').innerHTML=`<svg viewBox="0 0 520 170" width="100%" style="max-width:520px" role="img" aria-label="Histogram of 300 example CPU bursts">`+b.map((v,i)=>`<rect x="${20+i*50}" y="${140-v/m*120}" width="40" height="${v/m*120}" fill="${i<2?'#1F7A5A':'#9AA8A1'}"/><text x="${40+i*50}" y="158" font-size="12" text-anchor="middle" fill="currentColor">${i+1}${i===9?'+':''}</text><text x="${40+i*50}" y="${134-v/m*120}" font-size="12" text-anchor="middle" fill="currentColor">${v}</text>`).join('')+`</svg><p class="legend">300 example bursts drawn at random from the usual shape (x = burst length in ms, y = how many).</p>`};
+  $('#eh').onclick=hist;hist();
+  const jobs=[{n:'L',a:0,c:16,col:COL[1]},...[1,2,3,4,5].map((k,i)=>({n:'S'+k,a:i+1,c:2,col:COL[[0,2,3,4,5][i]]}))];
+  const go=()=>{const q=+$('#eq').value,c=+$('#ec').value,r=rr(jobs,q,c);$('#eg').innerHTML=gantt(jobs,r,r.total);
+    const wait=jobs.reduce((s,j)=>s+(r.fin[j.n]-j.a-j.c),0)/jobs.length,useful=jobs.reduce((s,j)=>s+j.c,0),eff=useful/(useful+r.sw*c)*100;
+    $('#eb').innerHTML=bar('CPU efficiency',eff,'var(--cpu)')+`<p>Average waiting time: <b class="n">${wait.toFixed(1)}</b> · context switches: <b class="n">${r.sw}</b></p>`;
+    $('#es').textContent=q?'With time slices the short jobs finish early, but some CPU time goes into switching.':'No interruption: almost no switching cost, but the short jobs wait behind the long one.'};
+  $('#eq').onchange=go;$('#ec').onchange=go;go();
+}
+function switchDemo(st){
+  const items=[['Program counter','t'],['CPU registers','t'],['Stack pointer','t'],['Memory map','p'],['Base and bound registers','p'],['Open files and devices','p'],['Accounting (CPU time used)','p'],['Status word and priority','p']];
+  st.innerHTML=`<div class="row"><button class="btn" id="s1">Switch: thread → thread (same tab)</button><button class="btn ghost" id="s2">Switch: tab → other tab (process)</button></div>
+  <div id="sl" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div><div id="sb"></div><div class="say" id="ss">Choose a switch.</div>`;
+  const run=k=>{let n=0;$('#sl').innerHTML=items.map(([t,g],i)=>{const on=k==='p'||g==='t';if(on)n++;return `<div class="box" style="margin:0;${on?'border-color:var(--cpu);background:color-mix(in srgb,var(--cpu) 14%,var(--panel))':'opacity:.45'}">${on?'✔ save + load':'— not touched'} · ${t}</div>`}).join('');
+    $('#sb').innerHTML=bar('Work for the switch',n/items.length*100,k==='p'?'var(--bad)':'var(--cpu)');
+    $('#ss').textContent=k==='p'?`Switching process: ${n} kinds of state change, the memory map too.`:`Switching thread in the same process: only ${n} kinds of state change. What is not touched is shared.`};
+  $('#s1').onclick=()=>run('t');$('#s2').onclick=()=>run('p');
+}
+function midDemo(st){
+  st.innerHTML=`<div class="row"><label>Jobs in memory <input type="range" id="dn" min="1" max="12" value="10"> <b id="dv">10</b></label><button class="btn" id="dsw">Swap out 4 jobs</button></div>
+  <div id="dc"></div><div class="say" id="ds"></div><p class="legend">A simple model with room for about 6 jobs, not a measurement.</p>`;
+  const work=n=>n<=6?n*15:Math.max(4,90-(n-6)*17);
+  const upd=()=>{const n=+$('#dn').value;$('#dv').textContent=n;
+    $('#dc').innerHTML=`<svg viewBox="0 0 520 180" width="100%" style="max-width:520px" role="img" aria-label="Useful work for 1 to 12 jobs">`+Array.from({length:12},(_,i)=>{const w=work(i+1);return `<rect x="${20+i*41}" y="${150-w*1.4}" width="32" height="${w*1.4}" fill="${i+1===n?'#C2571A':'#9AA8A1'}"/><text x="${36+i*41}" y="168" font-size="12" text-anchor="middle" fill="currentColor">${i+1}</text>`}).join('')+`</svg><p class="legend">x = jobs in memory · bar = useful CPU work done</p>`;
+    $('#ds').textContent=n>6?`${n} jobs fight for memory: they wait on page faults and the disk more than they compute.`:`${n} jobs fit in memory: adding one adds more useful work.`};
+  $('#dn').oninput=upd;$('#dsw').onclick=()=>{$('#dn').value=Math.max(1,+$('#dn').value-4);upd()};upd();
+}
+let s0=0;try{s0=+localStorage.getItem('isched')||0}catch(e){}
+load(Math.min(s0,Q.length-1));
+</script>
+</body>
+</html>
+
+</body></html>
