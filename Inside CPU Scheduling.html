@@ -1,0 +1,562 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Inside CPU Scheduling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Patrick+Hand&family=Patrick+Hand&display=swap">
+<style>
+/* Layout: same family as Inside Scheduling (Tutorial 4): one tab per tutorial question, an intro (real life, method, think) then a live demo. A control room: Tabs for four stations; the simulator shows a clock, the CPU, the ready queue and a Gantt chart that grows step by step. Each job keeps one colour everywhere. */
+:root{
+  --bg:#EFF1EC; --panel:#FFFFFF; --ink:#1E2622; --muted:#59645E; --line:#CDD4CE; --soft:#E4E9E4;
+  --on:#E39B12; --on-s:#FDF0D2; --off:#7A8698; --wire:#9AA5B4;
+  --accent:#1F7A5A; --accent-s:#DCEFE6; --ok:#1C7C47; --ok-s:#DBF1E3; --bad:#B23A30; --bad-s:#F8DFDB;
+  --g1:#2F5DAA; --g2:#C2410C; --g3:#1C7C47; --g4:#9333EA; --g5:#B4235D;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+  --on:#F5B83D; --on-s:#3D3018; --off:#7E8A9C; --wire:#5B6676;
+  --accent:#4CC392; --accent-s:#183A2C; --ok:#5ED091; --ok-s:#173525; --bad:#F2877B; --bad-s:#43211E;
+  --g1:#8DB0F0; --g2:#FF9A62; --g3:#5ED091; --g4:#C79BFF; --g5:#FF86B8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+  --on:#F5B83D; --on-s:#3D3018; --off:#7E8A9C; --wire:#5B6676;
+  --accent:#4CC392; --accent-s:#183A2C; --ok:#5ED091; --ok-s:#173525; --bad:#F2877B; --bad-s:#43211E;
+  --g1:#8DB0F0; --g2:#FF9A62; --g3:#5ED091; --g4:#C79BFF; --g5:#FF86B8; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:400 18px/1.55 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.wrap>*{min-width:0;max-width:100%}
+section.wrap{width:100%}
+h1{font:800 clamp(2rem,5vw,3.1rem)/1.05 var(--display);margin:0;letter-spacing:-.02em;text-wrap:balance}
+h2{font:800 clamp(1.3rem,2.6vw,1.75rem)/1.2 var(--display);margin:0;text-wrap:balance}
+h3{font:600 1.08rem/1.3 var(--display);margin:0}
+p{margin:0}
+.lead{color:var(--muted);max-width:66ch;margin-top:8px}
+.muted{color:var(--muted)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.nb{text-decoration:overline;text-decoration-thickness:2px}
+.nb+.nb{margin-left:.14em}
+.mono,code{font-family:var(--mono);font-size:.92em}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap}
+nav.tabs button{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 14px;cursor:pointer;text-align:left;line-height:1.25}
+nav.tabs b{display:block;font:600 1rem var(--display)} nav.tabs span{font-size:.82rem;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav.tabs button[aria-selected="true"] span{color:var(--panel)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.grid2>*{min-width:0}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font-weight:700;padding:8px 15px;border-radius:10px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:4px 10px;font-size:.92rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.fb{font-weight:700}.fb.ok{color:var(--ok)}.fb.no{color:var(--bad)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:700;font-size:.95rem}
+.chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-s)}
+.life{border-left:5px solid var(--on);background:var(--on-s);border-radius:0 10px 10px 0;padding:10px 14px}
+.life b{font:600 .78rem var(--display);text-transform:uppercase;letter-spacing:.06em;display:block;color:var(--muted)}
+.note{border-left:5px solid var(--accent);background:var(--accent-s);border-radius:0 10px 10px 0;padding:10px 14px}
+.scroll{overflow-x:auto}
+table.t{border-collapse:collapse;font-variant-numeric:tabular-nums}
+table.t th,table.t td{border:1px solid var(--line);padding:6px 12px;text-align:center;font-family:var(--mono)}
+table.t th{font-family:var(--display);font-size:.9rem;background:var(--soft)}
+td.b1{color:var(--on);font-weight:700} td.b0{color:var(--off)}
+td.diff{background:var(--bad-s)}
+/* bench */
+.bench{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.sw{display:flex;flex-direction:column;gap:14px}
+.sw button{width:92px;white-space:nowrap;border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;font:700 1rem var(--mono)}
+.sw button .k{width:22px;height:22px;border-radius:50%;background:var(--off);transition:background .2s}
+.sw button[aria-pressed="true"]{border-color:var(--on)} .sw button[aria-pressed="true"] .k{background:var(--on)}
+svg.gate{width:100%;max-width:340px;height:auto;display:block;margin:auto}
+svg.gate .body{fill:var(--panel);stroke:var(--ink);stroke-width:3}
+svg.gate .w{stroke:var(--wire);stroke-width:4;fill:none;transition:stroke .2s}
+svg.gate .w.on{stroke:var(--on)}
+svg.gate .bub{fill:var(--panel);stroke:var(--ink);stroke-width:3}
+svg.gate text{fill:var(--muted);font:600 14px var(--mono)}
+.lamp{width:74px;height:74px;border-radius:50%;border:3px solid var(--line);display:grid;place-items:center;font:700 1.6rem var(--mono);color:var(--off);background:var(--soft);transition:all .2s}
+.lamp.on{background:var(--on);border-color:var(--on);color:#2A1B00;box-shadow:0 0 28px var(--on)}
+@media (prefers-reduced-motion: reduce){.lamp,.sw .k,svg.gate .w{transition:none}}
+.cellbtn{min-width:46px;border:2px dashed var(--line);background:var(--panel);border-radius:8px;cursor:pointer;font:700 1rem var(--mono);padding:2px 8px}
+.cellbtn.set{border-style:solid}
+.cellbtn.right{border-color:var(--ok);background:var(--ok-s)} .cellbtn.wrong{border-color:var(--bad);background:var(--bad-s)}
+/* laws */
+.laws{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.law{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.law .f{font:600 1.08rem var(--mono)}
+.law small{color:var(--muted);font-size:.92rem}
+.expr{font:600 1.25rem/1.9 var(--mono);word-break:break-word}
+.br{display:inline-block;border-radius:8px;padding:0 3px;transition:background .3s}
+.br.twin{background:var(--on-s);outline:2px solid var(--on)}
+.br.gone{opacity:.25;text-decoration:line-through}
+input[type=text]{padding:8px 11px;border-radius:9px;border:2px solid var(--line);background:var(--panel);font-family:var(--mono);width:min(100%,24em)}
+/* kmap */
+.kmap{border-collapse:separate;border-spacing:4px;font-family:var(--mono)}
+.kmap th{font:600 .95rem var(--mono);color:var(--muted);padding:2px 6px}
+.kmap th.corner{font-size:.8rem;text-align:right;line-height:1.2}
+.kmap td{padding:0}
+.kc{width:58px;height:54px;border:2px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer;font:700 1.25rem var(--mono);position:relative}
+.kc small{position:absolute;top:2px;left:5px;font:500 .62rem var(--mono);color:var(--muted)}
+.kc.v1{color:var(--on);border-color:var(--on)}
+.kc.v0{color:var(--off)}
+.kc.right{background:var(--ok-s)} .kc.wrong{background:var(--bad-s);border-color:var(--bad)}
+.dots{position:absolute;bottom:3px;right:4px;display:flex;gap:2px}
+.dots i{width:9px;height:9px;border-radius:50%;display:block}
+.groups{display:flex;flex-direction:column;gap:8px}
+.grp{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;background:var(--panel);text-align:left}
+.grp .sq{width:14px;height:14px;border-radius:4px;margin-top:5px}
+.grp[aria-pressed="true"]{border-color:var(--ink);background:var(--soft)}
+.term{font:700 1.1rem var(--mono)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.steps li::before{counter-increment:s;content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;font:600 .95rem var(--display)}
+.steps .law-n{font:600 .78rem var(--display);text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+.steps .mono{font-size:1.08rem;font-weight:600;word-break:break-word}
+.gray{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-family:var(--mono)}
+.gray span{border:2px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--panel)}
+.gray span b{color:var(--on)}
+.signs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.signs{grid-template-columns:minmax(0,1fr)}}
+.signs>div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:start;background:var(--soft);border-radius:12px;padding:10px 12px}
+.signs .big{font:800 2rem/1 var(--mono);text-align:center;color:var(--accent)}
+.lesson{border:2px solid var(--ink)}
+.lt{font-size:1.3rem}
+.lx{font-size:1.15rem;max-width:70ch;min-height:3em}
+.big-expr{font-size:1.6rem;line-height:2.1;background:var(--soft);border-radius:12px;padding:10px 14px}
+.br.sorted{background:var(--accent-s);outline:2px solid var(--accent)}
+.br.t1{background:var(--on-s);outline:2px solid var(--on)}
+.br.t2{background:var(--ok-s);outline:2px solid var(--ok)}
+.arrow-sw{color:var(--accent);font-weight:800}
+details.card summary{cursor:pointer;font-family:var(--display)}
+table.t tr.pick td{background:var(--accent-s)}
+table.t tr[data-row]{cursor:pointer}
+.kc.hot{outline:4px solid var(--accent);outline-offset:1px}
+th.hot{color:var(--on)!important;background:var(--on-s);border-radius:6px}
+.coltest td.out{opacity:.35;text-decoration:line-through}
+.coltest td.keep{background:var(--ok-s);font-weight:700}
+.coltest th{font-size:.85rem}
+.verdict{font:700 1.3rem var(--mono)}
+.actbox{border:2px dashed var(--accent);border-radius:12px;padding:10px 14px;background:var(--panel);font-size:1.05rem}
+.actbox>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.actbox ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.actbox .now{background:var(--on-s);border-radius:6px;padding:0 4px}
+.actbox .bitrow{font:600 1.05rem var(--mono);letter-spacing:.08em}
+.actbox .bitrow b{color:var(--on);text-decoration:underline}
+.stages{display:flex;gap:8px;flex-wrap:wrap}
+.stages span{border:2px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:700}
+.stages b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--panel);font-size:.8rem;margin-right:6px}
+.stagepill{font:600 .82rem var(--display);text-transform:uppercase;letter-spacing:.06em;background:var(--ink);color:var(--panel);border-radius:999px;padding:3px 12px}
+.kc.cur{outline:4px solid var(--accent);outline-offset:1px}
+.kc.bad{outline:4px solid var(--bad);outline-offset:1px}
+.kc.fresh{animation:pop .6s ease}
+@keyframes pop{0%{transform:scale(1.25);background:var(--on-s)}100%{transform:scale(1)}}
+table.t tr.now td{background:var(--on-s)}
+.legend2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.95rem}
+.legend2 span b{font-family:var(--mono)}
+@media (prefers-reduced-motion: reduce){.kc.fresh{animation:none}}
+.scview{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.scview>*{min-width:0}
+.outcol{display:flex;flex-direction:column;gap:3px}
+.outcol div{display:grid;grid-template-columns:2.2em 2em;gap:6px;align-items:center;font-family:var(--mono);border-radius:6px;padding:1px 6px}
+.blkrow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.blkrow .lab{width:5.5em;font:600 .85rem var(--display);color:var(--muted)}
+.bx{width:52px;height:50px;border-radius:10px;border:2px solid var(--line);display:grid;place-items:center;font:700 1.25rem var(--mono);position:relative;background:var(--panel)}
+.bx small{position:absolute;top:1px;left:4px;font:500 .62rem var(--mono);color:var(--muted)}
+.bx.one{color:var(--on);border-color:var(--on)}
+.bx.sw{outline:4px solid var(--g4);outline-offset:1px}
+.swapnote{font:700 1rem var(--display);color:var(--g4)}
+.cheat{border:2px solid var(--on);background:var(--on-s);border-radius:12px;padding:10px 14px}
+.cheat>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.cheat ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.paper{--rule:color-mix(in srgb,var(--accent) 22%,transparent);background:var(--panel);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,var(--rule) 35px,var(--rule) 36px);border:1px solid var(--line);border-left:4px solid color-mix(in srgb,var(--bad) 60%,transparent);border-radius:6px;padding:4px 16px 12px 22px;font:400 1.3rem/36px "Patrick Hand","Comic Sans MS",cursive;overflow-x:auto}
+.paper .pl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline}
+.paper .pl .plaw{color:var(--accent);font-size:1.05rem;white-space:nowrap}
+.paper .st{font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.paper .fin{border:2px solid var(--ok);border-radius:6px;padding:0 8px;display:inline-block;line-height:32px}
+.paper table.kmap{font-family:inherit;margin:4px 0}
+.paper table.kmap td,.paper table.kmap th{border:1.5px solid var(--ink);width:44px;height:36px;text-align:center;font:400 1.2rem "Patrick Hand",cursive}
+.paper table.kmap{border-collapse:collapse}
+@media (max-width:560px){.paper .pl{grid-template-columns:minmax(0,1fr)}.paper .pl .plaw{white-space:normal}}
+.j0{--jc:#2F5DAA}.j1{--jc:#C2410C}.j2{--jc:#1C7C47}.j3{--jc:#9333EA}.j4{--jc:#B4235D}.j5{--jc:#0E7490}.j6{--jc:#A16207}.jidle{--jc:var(--line)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .j0{--jc:#8DB0F0}:root:not([data-theme="light"]) .j1{--jc:#FF9A62}:root:not([data-theme="light"]) .j2{--jc:#5ED091}:root:not([data-theme="light"]) .j3{--jc:#C79BFF}:root:not([data-theme="light"]) .j4{--jc:#FF86B8}:root:not([data-theme="light"]) .j5{--jc:#5FD4EA}:root:not([data-theme="light"]) .j6{--jc:#F2C14E}}
+:root[data-theme="dark"] .j0{--jc:#8DB0F0}:root[data-theme="dark"] .j1{--jc:#FF9A62}:root[data-theme="dark"] .j2{--jc:#5ED091}:root[data-theme="dark"] .j3{--jc:#C79BFF}:root[data-theme="dark"] .j4{--jc:#FF86B8}:root[data-theme="dark"] .j5{--jc:#5FD4EA}:root[data-theme="dark"] .j6{--jc:#F2C14E}
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--jc);background:color-mix(in srgb,var(--jc) 14%,var(--panel));border-radius:10px;padding:3px 10px;font:700 1rem var(--mono)}
+.chip small{font:500 .78rem var(--mono);color:var(--muted)}
+.room{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.3fr);gap:14px;align-items:stretch}
+@media (max-width:860px){.room{grid-template-columns:minmax(0,1fr)}}
+.clock{border:2px solid var(--ink);border-radius:14px;padding:8px 16px;text-align:center;background:var(--panel);min-width:110px}
+.clock b{display:block;font:800 2.4rem/1.1 var(--mono)}
+.clock span{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cpu{border:3px solid var(--ink);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;background:var(--soft)}
+.cpu>span,.rq>span{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rq{border:2px dashed var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.rq .lane{display:flex;gap:6px;flex-wrap:wrap;min-height:34px;align-items:center}
+.gantt{display:flex;min-width:100%;height:46px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--panel)}
+.gantt div{border-right:2px solid var(--ink);display:grid;place-items:center;font:700 .95rem var(--mono);background:color-mix(in srgb,var(--jc) 26%,var(--panel));color:var(--ink);min-width:0;overflow:hidden}
+.gantt div.idle{background:repeating-linear-gradient(45deg,var(--soft) 0 6px,var(--panel) 6px 12px);color:var(--muted)}
+.gantt div.future{background:var(--panel);border-right:1px dashed var(--line)}
+.ticks{position:relative;height:20px;font:500 .8rem var(--mono);color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.gwrap{overflow-x:auto;padding-bottom:4px}
+.gin{min-width:520px;padding-right:16px}
+table.t td.l{text-align:left}
+table.t input{width:4em;padding:3px 6px;border-radius:6px;border:2px solid var(--line);background:var(--panel);font-family:var(--mono)}
+.algo{display:flex;gap:6px;flex-wrap:wrap}
+.algo button{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:6px 12px;cursor:pointer;text-align:left;line-height:1.2}
+.algo button b{display:block;font:600 1rem var(--display)} .algo button span{font-size:.78rem;color:var(--muted)}
+.algo button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--panel)} .algo button[aria-pressed="true"] span{color:var(--panel)}
+.actbox{border:2px dashed var(--accent);border-radius:12px;padding:10px 14px;background:var(--panel);font-size:1.05rem}
+.actbox>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.actbox ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:3px}
+.paper{--rule:color-mix(in srgb,var(--accent) 22%,transparent);background:var(--panel);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,var(--rule) 35px,var(--rule) 36px);border:1px solid var(--line);border-left:4px solid color-mix(in srgb,var(--bad) 60%,transparent);border-radius:6px;padding:4px 16px 12px 22px;font:400 1.25rem/36px "Patrick Hand","Comic Sans MS",cursive;overflow-x:auto}
+.paper .st{font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.paper table{border-collapse:collapse;margin:4px 0;font:inherit;line-height:1.5}
+.paper td,.paper th{border:1.5px solid var(--ink);padding:0 10px;text-align:center}
+.paper .pg{display:inline-flex;border:1.5px solid var(--ink);margin:4px 0;line-height:34px}
+.paper .pg span{border-right:1.5px solid var(--ink);padding:0 4px;text-align:center}
+.paper .fin{border:2px solid var(--ok);border-radius:6px;padding:0 8px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{border:1px solid var(--line);border-radius:12px;padding:8px 14px;background:var(--panel);min-width:120px}
+.stat b{display:block;font:800 1.5rem var(--mono)} .stat span{font-size:.85rem;color:var(--muted)}
+.stat.warn{border-color:var(--bad);background:var(--bad-s)}
+.lanes{display:flex;flex-direction:column;gap:8px}
+.qlane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--panel)}
+@media (max-width:560px){.qlane{grid-template-columns:minmax(0,1fr)}}
+.qlane .nm{font:600 .95rem var(--display)} .qlane .nm small{display:block;font:400 .8rem var(--body);color:var(--muted)}
+.timeline3{position:relative;height:120px;margin:10px 0 0}
+.bar3{position:absolute;height:34px;border-radius:6px;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.mark{position:absolute;top:0;bottom:22px;border-left:3px solid var(--ink)}
+.mark span{position:absolute;bottom:-22px;transform:translateX(-50%);font:600 .8rem var(--display);white-space:nowrap}
+.brace{position:absolute;height:22px;border:2px solid var(--c);border-top:0;border-radius:0 0 8px 8px;font:700 .82rem var(--display);color:var(--c);display:grid;place-items:end center}
+.frame li{margin-bottom:4px}
+.frame .blank{display:inline-block;min-width:8em;border-bottom:2px dotted var(--muted)}
+
+.intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:860px){.intro{grid-template-columns:minmax(0,1fr)}}
+.think{font-style:italic;border-left:5px solid var(--accent);padding:6px 12px;background:var(--soft);border-radius:0 10px 10px 0;margin:0}
+footer{color:var(--muted);font-size:.9rem}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Inside CPU Scheduling</h1>
+    <p class="lead">CCA201 / CST232 Operating Systems, Tutorial 5. Each tab explains one question with something you use every day, then lets you try it live, step by step. The examples are not the tutorial answers: use them to think, then answer the tutorial questions yourself.</p>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Tutorial 5 questions" id="tabs"></nav>
+  <div class="card">
+    <h2 id="qTitle"></h2>
+    <div class="intro">
+      <div class="life"><b>In real life</b><div id="qLife"></div></div>
+      <div class="note"><b>The method</b><ol id="qHow" style="margin:4px 0 0;padding-left:22px"></ol></div>
+    </div>
+    <p class="think" id="qThink"></p>
+  </div>
+
+  <!-- S1 -->
+  <section id="s1" class="wrap" style="gap:16px">
+    <div class="card">
+      <h2>Try it: three moments on a timeline</h2>
+      <p class="muted">Every job has three important moments: when it <b>arrives</b>, when it <b>runs for the first time</b>, and when it <b>finishes</b>. Two measures come from them. Pick a situation.</p>
+      <div class="chips" id="sc1" role="group" aria-label="Situations"></div>
+      <div class="life" id="sc1Life"></div>
+      <div class="gwrap"><div class="gin"><div class="timeline3" id="tl3"></div></div></div>
+      <div class="actbox" id="sc1Act"></div>
+    </div>
+    <div class="card">
+      <h2>✍ On your exam paper</h2>
+      <p class="muted">A strong definition answer has three parts. Fill the blanks in your own words.</p>
+      <ol class="frame">
+        <li><b>What it measures:</b> “Response time is the time from when the process <span class="blank"></span> until <span class="blank"></span>.”</li>
+        <li><b>Formula:</b> write it with the moments above (for example, using “first run” and “arrival”).</li>
+        <li><b>Small example:</b> use numbers from your own timeline, like the one above.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- S2 -->
+  <section id="s2" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2 id="ruleH">The rule</h2>
+      <div class="algo" id="algo" role="group" aria-label="Algorithm"></div>
+      <div id="algoLife" hidden></div>
+      <div class="note" id="algoRule"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><h3>The jobs (you can change the numbers)</h3><div class="row"><span id="qBox" class="row muted"><label for="qIn">Quantum q</label><input type="number" id="qIn" value="3" min="1" max="20" style="width:4em;padding:4px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel)"></span><span id="presets" class="row"></span><button class="btn ghost sm" id="rnd">New random jobs</button></div></div>
+      <div class="scroll"><table class="t" id="jobs"></table></div>
+      <p class="fb no" id="jobErr"></p>
+    </div>
+    <div class="card" id="simCard">
+      <div class="row" style="justify-content:space-between"><h2>Watch it run</h2><span class="muted" id="stepN"></span></div>
+      <div class="room">
+        <div class="clock"><span>Clock</span><b id="clk">0</b><span>time t</span></div>
+        <div class="cpu"><span>CPU (running)</span><div id="cpuNow"></div></div>
+        <div class="rq"><span>Ready queue (waiting, with time left)</span><div class="lane" id="rqNow"></div></div>
+      </div>
+      <div class="actbox"><b id="actT">What happens</b><ol id="act"></ol></div>
+      <div class="gwrap"><div class="gin"><div class="gantt" id="gantt"></div><div class="ticks" id="ticks"></div></div></div>
+      <div class="row"><button class="btn ghost" id="bBack">◀ Back</button><button class="btn" id="bNext">Next ▶</button><button class="btn ghost" id="bPlay">▶ Play</button><button class="btn ghost" id="bEnd">Jump to the end</button></div>
+    </div>
+    <div class="card" id="resCard" hidden>
+      <h2>Results</h2>
+      <div class="scroll"><table class="t" id="res"></table></div>
+      <div class="stats" id="avg"></div>
+      <div class="warn note" id="dlNote" hidden></div>
+    </div>
+    <div class="card"><div class="row" style="justify-content:space-between"><h2>✍ On your exam paper</h2><button class="btn ghost sm" id="ppBtn">Show the model answer</button></div><p class="muted">Write it in 3 steps: the timeline, the table with the formulas, then the averages.</p><div class="paper" id="pp" hidden></div></div>
+  </section>
+
+  <!-- S3 -->
+  <section id="s3" class="wrap" style="gap:16px" hidden>
+    <p class="muted" style="text-align:center">Part 3 of the question: what if q is very big or very small?</p>
+    <div class="card">
+      <h2>How big should the time slice be?</h2>
+      <div class="life"><b>Real life</b>During consultation hour, a lecturer gives each student <i>q</i> minutes, then moves to the next student in the line. Walking between students takes a little time (that is the context switch).</div>
+      <div class="row"><label for="qs" class="muted">Quantum q = <b id="qsV" class="mono">3</b></label><input type="range" id="qs" min="1" max="12" value="3" style="flex:1;min-width:160px"><label for="csIn" class="muted">switch cost</label><input type="number" id="csIn" value="0.5" step="0.1" min="0" style="width:5em;padding:4px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel)"></div>
+      <div class="gwrap"><div class="gin"><div class="gantt" id="qGantt"></div><div class="ticks" id="qTicks"></div></div></div>
+      <div class="stats" id="qStats"></div>
+      <div class="actbox" id="qAct"></div>
+    </div>
+    <div class="card">
+      <h2>Very small slices: the overhead calculator</h2>
+      <p class="muted">Each slice of useful work costs one switch. Share of CPU time wasted = switch ÷ (q + switch).</p>
+      <div class="row"><label for="oq" class="muted">q</label><input type="number" id="oq" value="0.1" step="0.1" min="0.01" style="width:6em;padding:4px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel)"><label for="ocs" class="muted">switch</label><input type="number" id="ocs" value="0.05" step="0.01" min="0" style="width:6em;padding:4px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel)"><span class="fb" id="oOut"></span></div>
+      <div class="actbox" id="oAct"></div>
+    </div>
+  </section>
+
+  <!-- S4 -->
+  <section id="s4" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2>Try it: the IT helpdesk</h2>
+      <div class="life"><b>Real life</b>The campus IT helpdesk has 3 counters. Counter 1 gives 2 minutes, counter 2 gives 4 minutes, counter 3 serves people one by one until they are done. Counter 1 is always served first. If your problem is not solved in your time, you move down one counter. Short questions (S) keep arriving at counter 1 all the time. Watch what happens to the long job L.</div>
+      <div class="row"><label class="row" style="gap:6px"><input type="checkbox" id="aging"> Turn on <b>aging</b>: after waiting 8 minutes in counter 2 or 3, move back up to counter 1</label></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><div class="room" style="grid-template-columns:auto minmax(0,1fr)"><div class="clock"><span>Clock</span><b id="mClk">0</b><span>minute</span></div><div class="cpu"><span>CPU (being served)</span><div id="mCpu"></div></div></div></div>
+      <div class="lanes" id="mLanes"></div>
+      <div class="actbox"><b>What happens</b><ol id="mAct"></ol></div>
+      <div class="gwrap"><div class="gin"><div class="gantt" id="mGantt"></div><div class="ticks" id="mTicks"></div></div></div>
+      <div class="stats" id="mStats"></div>
+      <div class="row"><button class="btn ghost" id="mBack">◀ Back</button><button class="btn" id="mNext">Next ▶</button><button class="btn ghost" id="mPlay">▶ Play</button><button class="btn ghost" id="mEnd">Jump to the end</button></div>
+    </div>
+    <div class="card">
+      <h2>✍ On your exam paper</h2>
+      <p class="muted">Explanation questions are marked by keywords. Use this frame and fill it in your own words.</p>
+      <ol class="frame">
+        <li><b>Mechanism</b> (what the scheduler does): “When a job uses <span class="blank"></span> without <span class="blank"></span>, the scheduler <span class="blank"></span>.”</li>
+        <li><b>Rationale</b> (why): “Short / interactive jobs <span class="blank"></span>, while long CPU-bound jobs <span class="blank"></span>.”</li>
+        <li><b>Hazard</b> (what can go wrong): name it, then say who it hurts and when.</li>
+        <li><b>Solution</b>: name the mechanism, then explain it in one or two sentences with the word “wait”.</li>
+      </ol>
+    </div>
+  </section>
+  <footer>Companion for Tutorial 5. The demos help you think; the answers are yours to write. Ties are broken by arrival time; in Round Robin a new arrival joins the queue before the job whose slice just ended (the rule given in the tutorial).</footer>
+</div>
+<script>
+// ---------- scheduling engine (integer time) ----------
+function simulate(jobs,algo,q){q=q||4;const J=jobs.map(j=>({...j,rem:j.burst,first:null,finish:null}));const byId=Object.fromEntries(J.map(j=>[j.id,j]));
+  let pre_=false,t=0,run=null,slice=0,queue=[];const segs=[],events=[];const pre=algo==='SRT'||algo==='EDF';
+  const better=(a,b)=>algo==='EDF'?(a.dl-b.dl||a.arr-b.arr):(a.rem-b.rem||a.arr-b.arr||(a.id<b.id?-1:1));
+  const pick=()=>{if(algo==='FCFS'||algo==='RR')return queue.shift();let bi=0;for(let i=1;i<queue.length;i++)if(better(queue[i],queue[bi])<0)bi=i;return queue.splice(bi,1)[0]};
+  let guard=0;
+  while(J.some(j=>j.finish===null)&&guard++<10000){const msg=[];
+    if(run&&run.rem===0){run.finish=t;msg.push({k:'done',id:run.id,dl:run.dl,t:t,txt:`${run.id} finishes`+(algo==='EDF'?(t<=run.dl?` (deadline ${run.dl}: met)`:` (deadline ${run.dl}: MISSED)`):'')});run=null}
+    J.filter(j=>j.arr===t).forEach(j=>{queue.push(j);msg.push({k:'arr',id:j.id,burst:j.burst,dl:j.dl,txt:`${j.id} arrives (needs ${j.burst}${algo==='EDF'?`, deadline ${j.dl}`:''})`})});
+    if(algo==='RR'&&run&&slice===q){msg.push({k:'q',id:run.id,rem:run.rem,txt:`${run.id}'s quantum (${q}) is used up, ${run.rem} left → back of the queue`});queue.push(run);run=null}
+    if(pre&&run&&queue.length){let b=queue[0];queue.forEach(x=>{if(better(x,b)<0)b=x});if(better(b,run)<0){msg.push({k:'pre',id:b.id,other:run.id,a:algo==='EDF'?b.dl:b.rem,b:algo==='EDF'?run.dl:run.rem,txt:algo==='EDF'?`${b.id}'s deadline ${b.dl} is earlier than ${run.id}'s ${run.dl} → ${b.id} takes the CPU`:`${b.id} needs ${b.rem}, less than ${run.id}'s remaining ${run.rem} → ${b.id} takes the CPU`});queue.push(run);run=null;pre_=true}}
+    let picked=null;
+    if(!run&&queue.length){const cand=queue.slice();run=pick();slice=0;picked=run;if(run.first===null)run.first=t;
+      const why=algo==='FCFS'?'it arrived first':algo==='RR'?'it is at the front of the queue':algo==='EDF'?(cand.length>1?`earliest deadline (${run.dl})`:'it is the only one waiting'):(cand.length>1?`shortest ${algo==='SJN'?'job':'remaining time'} (${run.rem})`:'it is the only one waiting');
+      if(!pre_)msg.push({k:'pick',id:run.id,n:cand.length,v:algo==='EDF'?run.dl:run.rem,txt:`CPU picks ${run.id}: ${why}`});pre_=false}
+    if(msg.length)events.push({t,msg,queue:queue.map(j=>j.id+':'+j.rem),run:run?run.id:null,runRem:run?run.rem:0});
+    if(J.every(j=>j.finish!==null))break;
+    if(run){const last=segs[segs.length-1];if(last&&last.id===run.id&&last.e===t)last.e=t+1;else segs.push({id:run.id,s:t,e:t+1});run.rem--;slice++}
+    else{const last=segs[segs.length-1];if(last&&last.id==='idle'&&last.e===t)last.e=t+1;else segs.push({id:'idle',s:t,e:t+1})}
+    t++}
+  const stats=J.map(j=>({id:j.id,arr:j.arr,burst:j.burst,dl:j.dl,first:j.first,finish:j.finish,resp:j.first-j.arr,tat:j.finish-j.arr,wait:j.finish-j.arr-j.burst}));
+  return {segs,events,stats,switches:segs.filter(s=>s.id!=='idle').length-1}}
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const store={get(k,d){try{const v=localStorage.getItem('sl-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('sl-'+k,JSON.stringify(v))}catch(e){}}};
+const QS=[
+ {tab:'Q1',sub:'Response vs turnaround',title:'How long until it starts? How long until it ends?',show:['s1'],
+  life:'You tap a YouTube video. The time until the first image moves is like the <strong>response time</strong>. The time from your tap until the whole video has played is like the <strong>turnaround time</strong>.',
+  how:['Find three moments: <b>arrival</b>, <b>first time on the CPU</b>, <b>finish</b>.','Response time uses the first two moments.','Turnaround time uses the first and the last moment.','Check: the response is never bigger than the turnaround.'],
+  think:'Write one sentence for each measure in your own words, using the three moments. Then check your sentence with the timeline below.'},
+ {tab:'Q2',sub:'FCFS and SRT',title:'First come, or shortest remaining?',show:['s2'],algos:['FCFS','SRT'],
+  life:'<strong>FCFS</strong> is the canteen queue: first in line, first served. <strong>SRT</strong> is a photocopy shop that pauses a long job when a customer arrives with fewer pages than what is left.',
+  how:['FCFS: when the CPU is free, take the job that arrived first. Never interrupt.','SRT: at every arrival, compare the new job with the time <b>left</b> of the running job. The shorter one runs.','Draw the timeline step by step, then the table: finish, response, turnaround.'],
+  think:'Run the same jobs with FCFS, then with SRT. Which algorithm gives short jobs a better response time? Which job pays the price in SRT?'},
+ {tab:'Q3',sub:'SJN',title:'Shortest job next',show:['s2'],algos:['SJN'],
+  life:'A photocopy shop: when the machine is free, the owner calls the customer with the fewest pages. Once a job has started, it is finished before anybody else.',
+  how:['Only the jobs that have <b>already arrived</b> can be chosen.','Take the smallest CPU cycle. It runs to the end (no interruption).','At each choice, write: time, who is waiting, who is shortest.'],
+  think:'When exactly does SJN make a choice? Write the start and finish of each job, then the order in which they complete.'},
+ {tab:'Q4',sub:'Round Robin',title:'Everybody gets a turn',show:['s2','s3'],algos:['RR'],
+  life:'Consultation hour: the lecturer gives each student q minutes, then moves to the next student. If your question is not finished, you go back to the end of the line.',
+  how:['Run the job at the front of the queue for at most q.','Not finished? It goes to the back. A job arriving at that same moment goes in first.','Write the queue at every change, like the steps below.','Then move the q slider: very big q, very small q.'],
+  think:'If q is bigger than every job, which algorithm do you get? If q is tiny, where does the CPU time go? Can you state two rules of thumb for choosing q?'},
+ {tab:'Q5',sub:'EDF deadlines',title:'Earliest deadline first',show:['s2'],algos:['EDF'],
+  life:'Assignment week: you always work on the assignment with the closest due date. A new assignment with an earlier due date makes you switch to it.',
+  how:['At every arrival, the job with the earliest deadline runs (it can interrupt).','At the end, compare each finish time with its deadline.','If one is missed, compare the total work with the time available.'],
+  think:'Try “Overloaded week”. Could any other order save every deadline? What is the real cause of the missed deadline?'},
+ {tab:'Q6',sub:'Multilevel queues',title:'Moving between queues',show:['s4'],
+  life:'The campus IT helpdesk has 3 counters with different time limits. Quick questions are served first; long problems move down to the slower counters.',
+  how:['A job that uses its whole time slice moves <b>down</b> one queue.','Higher queues are always served first.','Watch the long job L when short jobs keep arriving, then turn on aging.'],
+  think:'Explain why long CPU-bound jobs are moved down, what can happen to them in the lowest queue, and which mechanism fixes it.'}];
+$('#tabs').innerHTML=QS.map((q,i)=>`<button role="tab" data-tab="${i}" aria-selected="false"><b>${q.tab}</b><span>${q.sub}</span></button>`).join('');
+$$('[data-tab]').forEach(b=>b.onclick=()=>tab(+b.dataset.tab));
+function tab(i){i=Math.min(Math.max(0,i|0),QS.length-1);const q=QS[i];$$('[data-tab]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.tab===i));
+  ['s1','s2','s3','s4'].forEach(t=>$('#'+t).hidden=!q.show.includes(t));
+  $('#qTitle').textContent=`${q.tab} · ${q.title}`;$('#qLife').innerHTML=q.life;$('#qHow').innerHTML=q.how.map(x=>`<li>${x}</li>`).join('');$('#qThink').textContent=q.think;
+  stopAll();if(q.algos){$$('[data-al]').forEach(b=>b.hidden=!q.algos.includes(b.dataset.al));if(!q.algos.includes(A)){A=q.algos[0];$$('[data-al]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.al===A));loadPreset(PRE[A])}$('#algo').hidden=q.algos.length<2;$('#ruleH').textContent=q.algos.length<2?'The rule in 2 lines':'Choose the rule'}
+  store.set('q',i)}
+let JC={};const jcls=id=>id==='idle'?'jidle':'j'+(JC[id]??0);
+const chip=(id,txt)=>`<span class="chip ${jcls(id)}">${esc(id)}${txt!==undefined?` <small>${txt}</small>`:''}</span>`;
+function ganttHTML(segs,upTo,total){const T=total||segs[segs.length-1].e;let h='';segs.forEach(s=>{if(upTo!==undefined&&s.s>=upTo)return;const e=upTo!==undefined?Math.min(s.e,upTo):s.e;h+=`<div class="${jcls(s.id)}${s.id==='idle'?' idle':''}" style="flex:${e-s.s} 0 0" title="${s.id} ${s.s}-${e}">${s.id==='idle'?'':esc(s.id)}</div>`});
+  if(upTo!==undefined&&upTo<T)h+=`<div class="future" style="flex:${T-upTo} 0 0"></div>`;return h}
+function ticksHTML(segs,upTo,total){const T=total||segs[segs.length-1].e;const pts=new Set([0]);segs.forEach(s=>{if(upTo===undefined||s.s<upTo){pts.add(s.s);pts.add(upTo!==undefined?Math.min(s.e,upTo):s.e)}});
+  let last=-99;return [...pts].sort((a,b)=>a-b).filter(p=>{const ok=(p-last)/T>=0.025||p===0;if(ok)last=p;return ok}).map(p=>`<span style="left:${p/T*100}%">${p}</span>`).join('')}
+
+// ---------- S1 ----------
+const SC=[
+ {name:'Food delivery',life:'You order nasi lemak on a delivery app at minute 3. The cook starts your order at minute 7, stops to finish a bigger order, comes back, and your food is ready at minute 16. Cooking it takes 7 minutes in total.',arr:3,segs:[[7,10],[12,16]],who:'Your order'},
+ {name:'Printer queue',life:'At the library you send a 5-page assignment to the printer at second 2. Two other students were before you. Your first page comes out at second 8 and the last one at second 13.',arr:2,segs:[[8,13]],who:'Your print'},
+ {name:'Lecturer Q&A',life:'You join the consultation line at minute 1. The lecturer answers you for 2 minutes at minute 4, then helps others, then finishes your question from minute 9 to minute 11.',arr:1,segs:[[4,6],[9,11]],who:'Your question'}];
+let sc=0;
+$('#sc1').innerHTML=SC.map((s,i)=>`<button data-sc="${i}" aria-pressed="${i===0}">${s.name}</button>`).join('');
+$$('[data-sc]').forEach(b=>b.onclick=()=>{sc=+b.dataset.sc;$$('[data-sc]').forEach(x=>x.setAttribute('aria-pressed',x===b));drawS1()});
+function drawS1(){const s=SC[sc],T=18,X=v=>v/T*100;const first=s.segs[0][0],fin=s.segs[s.segs.length-1][1],burst=s.segs.reduce((a,[x,y])=>a+y-x,0);
+  $('#sc1Life').innerHTML=`<b>Real life</b>${s.life}`;
+  let h=s.segs.map(([a,b])=>`<div class="bar3 j0" style="left:${X(a)}%;width:${X(b-a)}%;top:14px;background:color-mix(in srgb,var(--jc) 30%,var(--panel));border:2px solid var(--jc)">run</div>`).join('');
+  h+=`<div class="bar3" style="left:${X(s.arr)}%;width:${X(first-s.arr)}%;top:14px;border:2px dashed var(--muted);color:var(--muted)">wait</div>`;
+  [[s.arr,'Arrival '+s.arr],[first,'First run '+first],[fin,'Finish '+fin]].forEach(([v,l])=>h+=`<div class="mark" style="left:${X(v)}%"><span>${l}</span></div>`);
+  h+=`<div class="brace" style="--c:var(--g2);left:${X(s.arr)}%;width:${X(first-s.arr)}%;top:50px">Response ${first-s.arr}</div>`;
+  h+=`<div class="brace" style="--c:var(--g1);left:${X(s.arr)}%;width:${X(fin-s.arr)}%;top:74px">Turnaround ${fin-s.arr}</div>`;
+  $('#tl3').innerHTML=h;
+  $('#sc1Act').innerHTML=`<b>Read the timeline</b><ol><li>${s.who} arrives at <b>${s.arr}</b>, runs for the first time at <b>${first}</b>, and finishes at <b>${fin}</b>.</li><li><b>Response time</b> = first run − arrival = ${first} − ${s.arr} = <b>${first-s.arr}</b>. How long until someone <i>started</i> on it.</li><li><b>Turnaround time</b> = finish − arrival = ${fin} − ${s.arr} = <b>${fin-s.arr}</b>. The whole stay, from arrival to the end.</li><li>Bonus: <b>waiting time</b> = turnaround − work = ${fin-s.arr} − ${burst} = <b>${fin-s.arr-burst}</b>.</li></ol>`}
+
+// ---------- S2 simulator ----------
+const ALG={
+ FCFS:{n:'FCFS',d:'First come, first served',life:'The canteen queue: whoever arrives first is served first, and nobody can cut in.',rule:['When the CPU is free, take the job that <b>arrived first</b>.','A job runs until it finishes (no interruption).']},
+ SJN:{n:'SJN',d:'Shortest job next',life:'The photocopy shop: when the machine is free, the owner calls the customer with the fewest pages. But once a job starts, it is finished before anybody else.',rule:['When the CPU is free, look at the jobs that have <b>already arrived</b>.','Take the one with the <b>smallest CPU cycle</b>. It runs to the end (no interruption).']},
+ SRT:{n:'SRT',d:'Shortest remaining time',life:'The same shop, but stricter: if a customer arrives with fewer pages than what is LEFT of the current job, the owner pauses the machine and does the short job first.',rule:['At every arrival, compare the new job with the <b>time left</b> of the running job.','If the new one is shorter, it takes the CPU (preemption). The other one waits with its remaining time.']},
+ RR:{n:'RR',d:'Round Robin',life:'Consultation hour: the lecturer gives each student q minutes, then the next student. If you are not done, you go back to the end of the line.',rule:['Take the job at the front of the queue and run it for at most <b>q</b>.','If it is not finished, it goes to the <b>back</b> of the queue. A job that arrives at the same moment goes in <b>before</b> it.']},
+ EDF:{n:'EDF',d:'Earliest deadline first',life:'Assignment week: you always work on the assignment with the closest due date. If a new one comes with an earlier due date, you switch to it.',rule:['At every arrival, take the job with the <b>earliest deadline</b> (preemptive).','Check each finish time against its deadline: finish ≤ deadline means met.']}};
+const PRE={
+ FCFS:[['A',0,7],['B',1,4],['C',3,9],['D',5,2],['E',8,5]],SJN:[['A',0,7],['B',1,4],['C',3,9],['D',5,2],['E',8,5]],SRT:[['A',0,7],['B',1,4],['C',3,9],['D',5,2],['E',8,5]],
+ RR:[['A',0,6],['B',1,4],['C',2,3],['D',4,5]],EDF:[['T1',0,4,10],['T2',1,2,4],['T3',3,3,8],['T4',5,2,12]]};
+const OVER=[['T1',0,5,8],['T2',1,3,6],['T3',2,2,7]];
+let A='FCFS',JOBS=[],R=null,k=0,timer=null;
+$('#algo').innerHTML=Object.entries(ALG).map(([key,a])=>`<button data-al="${key}" aria-pressed="${key===A}"><b>${a.n}</b><span>${a.d}</span></button>`).join('');
+$$('[data-al]').forEach(b=>b.onclick=()=>{A=b.dataset.al;$$('[data-al]').forEach(x=>x.setAttribute('aria-pressed',x===b));loadPreset(PRE[A])});
+function loadPreset(P){JOBS=P.map(([id,arr,burst,dl])=>({id,arr,burst,dl}));drawAlgo();drawJobs();run()}
+function drawAlgo(){const a=ALG[A];$('#algoLife').innerHTML=`<b>Real life</b>${a.life}`;$('#algoRule').innerHTML=`<b>The rule in 2 lines</b><ol style="margin:4px 0 0;padding-left:22px">${a.rule.map(r=>`<li>${r}</li>`).join('')}</ol>`;
+  $('#qBox').hidden=A!=='RR';$('#presets').innerHTML=A==='EDF'?'<button class="btn ghost sm" id="pOk">Normal week</button><button class="btn ghost sm" id="pOver">Overloaded week</button>':'';
+  if(A==='EDF'){$('#pOk').onclick=()=>loadPreset(PRE.EDF);$('#pOver').onclick=()=>loadPreset(OVER)}}
+function drawJobs(){const ed=A==='EDF';$('#jobs').innerHTML=`<tr><th>Job</th><th>Arrival</th><th>CPU cycle</th>${ed?'<th>Deadline</th>':''}<th></th></tr>`+JOBS.map((j,i)=>`<tr><td>${chip(j.id)}</td><td><input type="number" min="0" data-f="arr" data-i="${i}" value="${j.arr}" aria-label="arrival of ${j.id}"></td><td><input type="number" min="1" data-f="burst" data-i="${i}" value="${j.burst}" aria-label="cpu cycle of ${j.id}"></td>${ed?`<td><input type="number" min="1" data-f="dl" data-i="${i}" value="${j.dl}" aria-label="deadline of ${j.id}"></td>`:''}<td><button class="btn ghost sm" data-del="${i}" aria-label="remove ${j.id}">✕</button></td></tr>`).join('')+`<tr><td colspan="${ed?5:4}" class="l"><button class="btn ghost sm" id="addJ">+ Add a job</button></td></tr>`;
+  $$('[data-f]').forEach(inp=>inp.onchange=()=>{const v=parseInt(inp.value,10);if(isNaN(v))return;JOBS[+inp.dataset.i][inp.dataset.f]=v;run()});
+  $$('[data-del]').forEach(b=>b.onclick=()=>{if(JOBS.length<=2)return;JOBS.splice(+b.dataset.del,1);drawJobs();run()});
+  $('#addJ').onclick=()=>{if(JOBS.length>=7)return;const used=new Set(JOBS.map(j=>j.id));const id=ed?'T'+(JOBS.length+1):'ABCDEFG'.split('').find(c=>!used.has(c));const last=Math.max(...JOBS.map(j=>j.arr));JOBS.push({id,arr:last+2,burst:3,dl:last+8});drawJobs();run()}}
+$('#rnd').onclick=()=>{const n=4+Math.floor(Math.random()*2);let t=0;JOBS=[...Array(n).keys()].map(i=>{const arr=i===0?0:(t+=1+Math.floor(Math.random()*3));const burst=1+Math.floor(Math.random()*9);return {id:A==='EDF'?'T'+(i+1):'ABCDEFG'[i],arr,burst,dl:arr+burst+Math.floor(Math.random()*6)}});drawJobs();run()};
+$('#qIn').onchange=run;
+function run(){stop();const bad=JOBS.find(j=>!(j.burst>0)||!(j.arr>=0)||(A==='EDF'&&!(j.dl>0)));$('#jobErr').textContent=bad?`Check job ${bad.id}: every number must be positive.`:'';if(bad)return;
+  if(!JOBS.some(j=>j.arr===0)){$('#jobErr').textContent='Tip: usually the first job arrives at 0.'}
+  JC={};JOBS.forEach((j,i)=>JC[j.id]=i);const q=Math.max(1,parseInt($('#qIn').value,10)||3);R=simulate(JOBS,A,q);R.q=q;k=0;drawSim();$('#resCard').hidden=true;refreshPaper()}
+function drawSim(){const e=R.events[k],T=R.segs[R.segs.length-1].e;
+  $('#clk').textContent=e.t;$('#stepN').textContent=`Moment ${k+1} of ${R.events.length}`;
+  $('#cpuNow').innerHTML=e.run?chip(e.run,`${e.runRem} left`):'<span class="muted">empty (idle)</span>';
+  $('#rqNow').innerHTML=e.queue.length?e.queue.map(x=>{const [id,rem]=x.split(':');return chip(id,`${rem} left`)}).join(''):'<span class="muted">nobody waiting</span>';
+  $('#actT').textContent=`What happens at t = ${e.t}`;$('#act').innerHTML=e.msg.map(m=>`<li>${esc(m.txt)}</li>`).join('');
+  const next=R.events[k+1];const upTo=next?next.t:T;
+  if(next&&e.run)$('#act').innerHTML+=`<li class="muted">${esc(e.run)} runs from ${e.t} to ${next.t}${A==='RR'?'':''}.</li>`;
+  $('#gantt').innerHTML=ganttHTML(R.segs,k===R.events.length-1?T:upTo,T);$('#ticks').innerHTML=ticksHTML(R.segs,k===R.events.length-1?T:upTo,T);
+  $('#bBack').disabled=k===0;$('#bNext').disabled=$('#bEnd').disabled=k===R.events.length-1;
+  if(k===R.events.length-1)drawRes()}
+function drawRes(){$('#resCard').hidden=false;const ed=A==='EDF';const S=R.stats;
+  $('#res').innerHTML=`<tr><th>Job</th><th>Arrival</th><th>CPU</th>${ed?'<th>Deadline</th>':''}<th>First run</th><th>Finish</th><th>Response<br>= first − arrival</th><th>Turnaround<br>= finish − arrival</th>${ed?'<th>Deadline met?</th>':''}</tr>`+S.map(s=>`<tr><td>${chip(s.id)}</td><td>${s.arr}</td><td>${s.burst}</td>${ed?`<td>${s.dl}</td>`:''}<td>${s.first}</td><td><b>${s.finish}</b></td><td>${s.first} − ${s.arr} = <b>${s.resp}</b></td><td>${s.finish} − ${s.arr} = <b>${s.tat}</b></td>${ed?`<td style="color:var(${s.finish<=s.dl?'--ok':'--bad'});font-weight:700">${s.finish<=s.dl?'yes':'NO'}</td>`:''}</tr>`).join('');
+  const n=S.length,ar=S.reduce((a,s)=>a+s.resp,0),at=S.reduce((a,s)=>a+s.tat,0);
+  $('#avg').innerHTML=`<div class="stat"><b>${fmt(ar/n)}</b><span>average response = ${ar} ÷ ${n}</span></div><div class="stat"><b>${fmt(at/n)}</b><span>average turnaround = ${at} ÷ ${n}</span></div><div class="stat"><b>${R.switches}</b><span>switches between jobs</span></div>`;
+  if(ed){const miss=S.filter(s=>s.finish>s.dl);const work=S.reduce((a,s)=>a+s.burst,0),last=Math.max(...S.map(s=>s.dl)),start=Math.min(...S.map(s=>s.arr));
+    $('#dlNote').hidden=false;$('#dlNote').innerHTML=miss.length?`<b>${miss.map(s=>s.id).join(', ')} missed the deadline.</b> Quick check: the jobs need ${work} units of work, but there are only ${last-start} units between ${start} and the last deadline ${last}. Too much work for the time: no order of jobs can save everyone.`:`<b>All deadlines are met.</b> Quick check: ${work} units of work fit in the ${last-start} units before the last deadline.`}else $('#dlNote').hidden=true}
+const fmt=x=>Number.isInteger(x)?String(x):x.toFixed(2);
+$('#bNext').onclick=()=>{stop();if(k<R.events.length-1){k++;drawSim()}};$('#bBack').onclick=()=>{stop();if(k>0){k--;drawSim();$('#resCard').hidden=true}};
+$('#bEnd').onclick=()=>{stop();k=R.events.length-1;drawSim()};
+$('#bPlay').onclick=()=>{if(timer){stop();return}$('#bPlay').textContent='❚❚ Pause';timer=setInterval(()=>{if(k<R.events.length-1){k++;drawSim()}else stop()},1700)};
+function stop(){clearInterval(timer);timer=null;$('#bPlay').textContent='▶ Play'}
+// exam paper
+function paperHTML(){const S=R.stats,ed=A==='EDF',n=S.length,ar=S.reduce((a,s)=>a+s.resp,0),at=S.reduce((a,s)=>a+s.tat,0),T=R.segs[R.segs.length-1].e;
+  const pg=`<div class="pg">${R.segs.map(s=>`<span style="min-width:${Math.max(28,(s.e-s.s)*18)}px">${s.id==='idle'?'idle':s.id}</span>`).join('')}</div><div style="display:flex;font-size:1rem;line-height:1.2">${R.segs.map((s,i)=>`<span style="min-width:${Math.max(28,(s.e-s.s)*18)+1.5}px">${s.s}${i===R.segs.length-1?`<span style="float:right">${s.e}</span>`:''}</span>`).join('')}</div>`;
+  return `<div class="st">Step 1: Draw the timeline (${ALG[A].n}${A==='RR'?', q = '+R.q:''}).</div>${pg}
+  <div class="st">Step 2: Table (response = first run − arrival, turnaround = finish − arrival).</div>
+  <table><tr><th>Job</th><th>Arrival</th><th>CPU</th><th>Finish</th><th>Response</th><th>Turnaround</th>${ed?'<th>Deadline</th>':''}</tr>${S.map(s=>`<tr><td>${s.id}</td><td>${s.arr}</td><td>${s.burst}</td><td>${s.finish}</td><td>${s.first} − ${s.arr} = ${s.resp}</td><td>${s.finish} − ${s.arr} = ${s.tat}</td>${ed?`<td>${s.finish} ${s.finish<=s.dl?'≤':'>'} ${s.dl} ${s.finish<=s.dl?'met':'MISSED'}</td>`:''}</tr>`).join('')}</table>
+  <div class="st">Step 3: Averages.</div><div>Average response = (${S.map(s=>s.resp).join(' + ')}) ÷ ${n} = ${fmt(ar/n)}</div><div>Average turnaround = (${S.map(s=>s.tat).join(' + ')}) ÷ ${n} = <span class="fin">${fmt(at/n)}</span></div>`}
+$('#ppBtn').onclick=()=>{const p=$('#pp');p.hidden=!p.hidden;$('#ppBtn').textContent=p.hidden?'Show the model answer':'Hide the model answer';refreshPaper()};
+function refreshPaper(){if(!$('#pp').hidden&&R)$('#pp').innerHTML=paperHTML()}
+
+// ---------- S3 quantum ----------
+const QJ=[['A',0,6],['B',1,4],['C',2,3],['D',4,5]].map(([id,arr,burst])=>({id,arr,burst}));
+function drawQ(){const q=+$('#qs').value,cs=Math.max(0,parseFloat($('#csIn').value)||0);$('#qsV').textContent=q;JC={};QJ.forEach((j,i)=>JC[j.id]=i);
+  const r=simulate(QJ,'RR',q),f=simulate(QJ,'FCFS'),T=r.segs[r.segs.length-1].e;const n=QJ.length;
+  $('#qGantt').innerHTML=ganttHTML(r.segs);$('#qTicks').innerHTML=ticksHTML(r.segs);
+  const ar=r.stats.reduce((a,s)=>a+s.resp,0)/n,at=r.stats.reduce((a,s)=>a+s.tat,0)/n,lost=r.switches*cs;const maxB=Math.max(...QJ.map(j=>j.burst));
+  const same=r.segs.map(s=>s.id).join()===f.segs.map(s=>s.id).join();
+  $('#qStats').innerHTML=`<div class="stat"><b>${r.switches}</b><span>switches</span></div><div class="stat${lost/(T+lost)>0.1?' warn':''}"><b>${fmt(lost)}</b><span>time lost switching (${fmt(lost/(T+lost)*100)}%)</span></div><div class="stat"><b>${fmt(ar)}</b><span>average response</span></div><div class="stat"><b>${fmt(at)}</b><span>average turnaround</span></div>`;
+  const pct=Math.round(QJ.filter(j=>j.burst<=q).length/n*100);
+  $('#qAct').innerHTML=`<b>What you see</b><ol>${same?`<li><b>q = ${q} is at least the longest job (${maxB}).</b> Every job finishes in its first slice, so the order is exactly FCFS. Short jobs wait behind long ones: the response time gets worse.</li>`:`<li>q = ${q} is smaller than the longest job (${maxB}): jobs are cut and come back later. Short jobs get the CPU sooner.</li>`}
+   ${q<=1?'<li><b>Tiny q:</b> look at the number of switches. Each switch costs time and does no useful work.</li>':''}
+   <li>Rule of thumb 1: about <b>80%</b> of jobs should finish within one slice. Here ${pct}% of the jobs need ≤ ${q}.</li><li>Rule of thumb 2: q should be much bigger than one switch (about <b>100 times</b>). Here q ÷ switch = ${cs?fmt(q/cs):'∞'}.</li></ol>`}
+$('#qs').oninput=drawQ;$('#csIn').oninput=drawQ;
+function drawO(){const q=parseFloat($('#oq').value),c=parseFloat($('#ocs').value);if(!(q>0)||!(c>=0))return;const w=c/(q+c);
+  $('#oOut').textContent=`${fmt(w*100)}% of the CPU time is wasted`;$('#oOut').className='fb '+(w>0.1?'no':'ok');
+  $('#oAct').innerHTML=`<b>The calculation</b><ol><li>Useful work per slice = q = ${q}. Lost per slice = one switch = ${c}.</li><li>Wasted share = ${c} ÷ (${q} + ${c}) = <b>${fmt(w*100)}%</b>.</li><li>${w>0.1?'The CPU spends a big part of its time switching instead of working: everything gets slower.':'Small overhead: the slice is long enough compared with the switch.'}</li></ol>`}
+$('#oq').oninput=drawO;$('#ocs').oninput=drawO;
+
+// ---------- S4 MLFQ ----------
+const QN=[2,4,Infinity];let M=null,mk=0,mTimer=null;
+function simMLFQ(aging){const jobs=[{id:'L',arr:0,burst:14},{id:'M',arr:1,burst:5}];let sc=0;for(let t=2;t<=40;t+=2)jobs.push({id:'S'+(++sc),arr:t,burst:2});
+  const J=jobs.map(j=>({...j,rem:j.burst,lvl:0,wait:0,finish:null}));const Q=[[],[],[]];let run=null,used=0;const steps=[],segs=[];let maxWaitL=0,waitL=0;
+  for(let t=0;t<200;t++){const msg=[];
+    if(run&&run.rem===0){run.finish=t;msg.push(`${run.id} is done`);run=null}
+    J.filter(j=>j.arr===t).forEach(j=>{Q[0].push(j);if(j.id[0]!=='S'||j.id==='S1')msg.push(`${j.id} arrives at counter 1${j.id==='S1'?' (short questions now arrive every 2 minutes)':''}`)});
+    if(run&&run.lvl<2&&used===QN[run.lvl]){const from=run.lvl+1;run.lvl++;Q[run.lvl].push(run);msg.push(`${run.id} used all ${QN[from-1]} minutes and is not done → moves DOWN to counter ${run.lvl+1}`);run=null}
+    if(run&&run.lvl>0){const hi=Q.slice(0,run.lvl).findIndex(q=>q.length);if(hi>=0){msg.push(`Someone is waiting at counter ${hi+1} (higher) → ${run.id} is paused and waits at counter ${run.lvl+1}`);Q[run.lvl].unshift(run);run=null}}
+    if(aging){[1,2].forEach(l=>{for(const j of [...Q[l]]){if(j.wait>=8){Q[l].splice(Q[l].indexOf(j),1);j.lvl=0;j.wait=0;Q[0].push(j);msg.push(`Aging: ${j.id} waited 8 minutes → moves UP to counter 1`)}}})}
+    if(!run){const l=Q.findIndex(q=>q.length);if(l>=0){run=Q[l].shift();used=0;run.wait=0;if(run.id[0]!=='S'||msg.length)msg.push(`${run.id} is served at counter ${l+1}`)}}
+    if(run&&run.id==='L')waitL=0;
+    const done=J.every(j=>j.finish!==null);
+    steps.push({t,msg,run:run?{id:run.id,rem:run.rem,lvl:run.lvl}:null,Q:Q.map(q=>q.map(j=>({id:j.id,rem:j.rem,wait:j.wait}))),Lw:waitL});
+    if(done||t>=120)break;
+    if(run){const last=segs[segs.length-1];if(last&&last.id===run.id&&last.e===t)last.e++;else segs.push({id:run.id,s:t,e:t+1});run.rem--;used++}
+    else{const last=segs[segs.length-1];if(last&&last.id==='idle'&&last.e===t)last.e++;else segs.push({id:'idle',s:t,e:t+1})}
+    [0,1,2].forEach(l=>Q[l].forEach(j=>j.wait++));const L=J[0];if(L.finish===null&&run!==L){waitL++;maxWaitL=Math.max(maxWaitL,waitL)}}
+  return {steps,segs,J,maxWaitL}}
+function mRun(){mStop();M=simMLFQ($('#aging').checked);mk=0;drawM()}
+const mcls=id=>id==='L'?'j0':id==='M'?'j1':id==='idle'?'jidle':'j5';
+function drawM(){const s=M.steps[mk],T=M.segs[M.segs.length-1].e;const L=M.J[0];
+  $('#mClk').textContent=s.t;$('#mCpu').innerHTML=s.run?`<span class="chip ${mcls(s.run.id)}">${s.run.id} <small>${s.run.rem} left · counter ${s.run.lvl+1}</small></span>`:'<span class="muted">nobody</span>';
+  $('#mLanes').innerHTML=['Counter 1 · 2 min','Counter 2 · 4 min','Counter 3 · until done'].map((n,l)=>`<div class="qlane"><div class="nm">${n}<small>${['highest priority','medium','lowest priority (FCFS)'][l]}</small></div><div class="lane" style="display:flex;gap:6px;flex-wrap:wrap">${s.Q[l].length?s.Q[l].map(j=>`<span class="chip ${mcls(j.id)}">${j.id} <small>${j.rem} left${j.id==='L'||j.id==='M'?` · waited ${j.wait}`:''}</small></span>`).join(''):'<span class="muted">empty</span>'}</div></div>`).join('');
+  $('#mAct').innerHTML=(s.msg.length?s.msg:['Nothing new: the same job keeps going.']).map(m=>`<li>${esc(m)}</li>`).join('');
+  const segs=M.segs.map(x=>({...x}));const html=ganttHTML(segs,Math.max(mk===M.steps.length-1?T:s.t,1),T).replace(/class="j\d+|class="jidle/g,m=>m);
+  $('#mGantt').innerHTML=segs.filter(x=>x.s<(mk===M.steps.length-1?T:s.t)).map(x=>{const e=Math.min(x.e,mk===M.steps.length-1?T:s.t);return `<div class="${mcls(x.id)}${x.id==='idle'?' idle':''}" style="flex:${e-x.s} 0 0">${x.id==='idle'?'':(e-x.s>=2?x.id:'')}</div>`}).join('')+(mk<M.steps.length-1?`<div class="future" style="flex:${T-s.t} 0 0"></div>`:'');
+  $('#mTicks').innerHTML=[0,10,20,30,40,50,60,70,80].filter(v=>v<=T).map(v=>`<span style="left:${v/T*100}%">${v}</span>`).join('');
+  const Lf=L.finish;$('#mStats').innerHTML=`<div class="stat"><b>${Lf!==null&&s.t>=Lf?Lf:'…'}</b><span>L finishes at minute</span></div><div class="stat${M.maxWaitL>=15?' warn':''}"><b>${M.maxWaitL}</b><span>longest time L waited in a row</span></div><div class="stat"><b>${$('#aging').checked?'ON':'OFF'}</b><span>aging</span></div>`;
+  $('#mBack').disabled=mk===0;$('#mNext').disabled=$('#mEnd').disabled=mk===M.steps.length-1}
+$('#mNext').onclick=()=>{mStop();if(mk<M.steps.length-1){mk++;drawM()}};$('#mBack').onclick=()=>{mStop();if(mk>0){mk--;drawM()}};
+$('#mEnd').onclick=()=>{mStop();mk=M.steps.length-1;drawM()};
+$('#mPlay').onclick=()=>{if(mTimer){mStop();return}$('#mPlay').textContent='❚❚ Pause';mTimer=setInterval(()=>{if(mk<M.steps.length-1){mk++;drawM()}else mStop()},700)};
+function mStop(){clearInterval(mTimer);mTimer=null;$('#mPlay').textContent='▶ Play'}
+$('#aging').onchange=mRun;
+function stopAll(){stop();mStop()}
+// start
+drawS1();loadPreset(PRE.FCFS);drawQ();drawO();mRun();tab(store.get('q',0));
+</script>
+
+</body></html>

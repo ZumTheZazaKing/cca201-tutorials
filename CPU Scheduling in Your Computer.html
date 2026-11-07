@@ -1,0 +1,261 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CPU Scheduling in Your Computer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --blue:#2F6FDB; --green:#2E8B57; --red:#C0392B; --amber:#B87410; --purple:#7B5EA7; --term:#14161C; --termtx:#D7F5DE;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.12;margin:0}
+.n,code,kbd{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:.98rem} nav button span{font-size:.8rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.st[hidden]{display:none!important}
+.st{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px}
+@media (max-width:860px){.st{grid-template-columns:1fr}}
+.left h2{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.where{color:var(--muted);margin:0 0 12px}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--soft);margin:0 6px 10px 0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.box h3{font-size:1rem;margin-bottom:6px}
+.os{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.os button{font:inherit;font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.os button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.box ol{margin:0;padding-left:20px} .box li{margin:4px 0}
+kbd{font-size:.85rem;background:var(--soft);border:1px solid var(--line);border-bottom-width:3px;border-radius:5px;padding:0 6px}
+code{font-size:.9rem;background:var(--soft);padding:1px 5px;border-radius:4px}
+.term{background:var(--term);color:var(--termtx);border-radius:10px;padding:10px 12px;font:500 .9rem "JetBrains Mono",monospace;white-space:pre-wrap;overflow-x:auto;position:relative;margin-top:8px}
+.term .c{color:#8C93A6}
+.copy{position:absolute;top:6px;right:6px;font:700 .75rem "Atkinson Hyperlegible",sans-serif;padding:2px 8px;border-radius:6px;border:1px solid #444;background:#2A2D36;color:#fff;cursor:pointer}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:10px 14px;border-radius:0 8px 8px 0}
+.try{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:16px;min-width:0}
+.try h3{font-size:1.05rem;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input[type=text],input[type=number],select{font:inherit;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn{font:inherit;font-weight:700;font-size:.92rem;padding:7px 12px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:wait}
+table.t{border-collapse:collapse;font-size:.95rem;width:100%}
+table.t td,table.t th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{font-size:.78rem;color:var(--muted)}
+.big{font:700 1.35rem "JetBrains Mono",monospace;word-break:break-all}
+.bits{font:700 1.05rem "JetBrains Mono",monospace;word-break:break-all}
+.bits .pg{color:var(--blue)} .bits .off{color:var(--amber)}
+.bars{display:grid;gap:6px;margin-top:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 90px;gap:8px;align-items:center;font-size:.9rem}
+.trk{height:18px;background:var(--soft);border-radius:9px;overflow:hidden}
+.trk i{display:block;height:100%;border-radius:9px;transition:width .6s}
+.note{font-size:.88rem;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:160px;border-bottom:2px solid var(--ink);border-left:2px solid var(--ink);padding:0 4px;margin:8px 0 4px}
+.chart div{flex:1;border-radius:4px 4px 0 0;min-height:2px;position:relative}
+.chart div span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:.72rem;color:var(--muted)}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>CPU Scheduling in Your Computer</h1>
+  <p>Operating Systems, Tutorial 5 in practice. Response time, Round Robin slices, deadlines and priority queues are working on your own computer right now. In each station, look on your computer, then use the tool on the right.</p>
+</header>
+<nav role="tablist" aria-label="Stations" id="nav"></nav>
+<div class="pager" id="pager"></div>
+
+<!-- 1 response vs turnaround -->
+<section class="st" data-t="1 · Response vs turnaround" data-s="Measure a web page">
+  <div class="left">
+    <h2>When does it start? When does it end?</h2>
+    <p class="where">Every web page you open is a small job. Chrome measures for you when the first answer arrives and when everything is finished.</p>
+    <span class="tag">Q1 · response and turnaround</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Open any website (for example the USM e-learning page). Press <kbd>F12</kbd> → <b>Network</b> tab.</li>
+      <li>Press <kbd>Ctrl</kbd> <kbd>R</kbd> to reload. Click the first line of the list (the page itself) → <b>Timing</b>.</li>
+      <li>Read <b>Waiting for server response</b>: time until the first answer started (like the <b>response time</b>).</li>
+      <li>At the bottom of the Network tab, read <b>Finish</b>: time until everything was loaded (like the <b>turnaround time</b>).</li>
+      <li>Type both numbers in the tool on the right.</li></ol>
+      <p class="note">On a phone: the moment the first text appears vs the moment the loading bar disappears.</p>
+    </div>
+    <p class="think"><strong>Think:</strong> the page started to answer quickly but took long to finish. Which measure does a user feel first? Which one counts the whole stay?</p>
+  </div>
+  <div class="try"><h3>Your page</h3>
+    <div class="row"><label>Waiting for server response (ms) <input type="number" id="rW" value="180" min="0"></label><label>Finish (ms) <input type="number" id="rF" value="2400" min="0"></label></div>
+    <div id="rOut"></div>
+  </div>
+</section>
+
+<!-- 2 FCFS vs shortest first -->
+<section class="st" hidden data-t="2 · First come or shortest first" data-s="Your print and download queue">
+  <div class="left">
+    <h2>Who goes first in your queues?</h2>
+    <p class="where">Your printer queue is <b>FCFS</b>: documents print in the order they were sent. Some download managers let small files go first: that is the <b>shortest job</b> idea.</p>
+    <span class="tag">Q2 · FCFS and SRT</span><span class="tag">Q3 · SJN</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="pq"><button class="on" data-v="w">Windows printer</button><button data-v="c">Chrome downloads</button></div>
+      <div data-for="pq" data-v="w"><ol><li><b>Settings → Bluetooth &amp; devices → Printers &amp; scanners</b> → your printer → <b>Open print queue</b>.</li>
+      <li>Send 3 documents (one long, two short). The queue shows them in the order you sent them.</li>
+      <li>Right-click the long one → <b>Pause</b>: the short ones print first. You just did by hand what SRT does.</li></ol></div>
+      <div data-for="pq" data-v="c" hidden><ol><li>Start a big download and two small ones. Press <kbd>Ctrl</kbd> <kbd>J</kbd>.</li>
+      <li>Notice which ones finish first. Then pause the big one: the small ones finish sooner.</li></ol></div>
+    </div>
+    <p class="think"><strong>Think:</strong> in which order should the jobs go if you want the smallest <em>average</em> waiting time? What happens to the biggest job?</p>
+  </div>
+  <div class="try"><h3>Your queue: FCFS vs shortest first</h3>
+    <p class="note" style="margin-top:0">Type how many minutes each job needs (all sent at time 0, in this order).</p>
+    <div class="row" id="pqIn"></div>
+    <div id="pqOut"></div>
+  </div>
+</section>
+
+<!-- 3 round robin in this tab -->
+<section class="st" hidden data-t="3 · Time slices" data-s="Round Robin in this tab">
+  <div class="left">
+    <h2>Slices of CPU time, for real</h2>
+    <p class="where">Your computer gives each thread a short <b>time slice</b> (a quantum) and then switches. Here, this page runs 4 jobs in Round Robin using real slices of your CPU.</p>
+    <span class="tag">Q4 · Round Robin</span><span class="tag">Q4 · quantum size</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="ts"><button class="on" data-v="w">Windows</button><button data-v="l">Linux</button></div>
+      <div data-for="ts" data-v="w"><ol><li><b>Settings → System → About → Advanced system settings</b> → Performance <b>Settings</b> → <b>Advanced</b>.</li>
+      <li>“Adjust for best performance of”: <b>Programs</b> = short slices (good for people clicking), <b>Background services</b> = long slices (good for servers).</li></ol></div>
+      <div data-for="ts" data-v="l" hidden><div class="term"><button class="copy">Copy</button>cat /proc/sys/kernel/sched_rr_timeslice_ms</div><p class="note">The Round Robin slice of the Linux real-time scheduler, in milliseconds (often 100).</p></div>
+    </div>
+    <p class="think"><strong>Think:</strong> with a very big slice, the ball freezes. With a very small slice, the total time grows. Why? Which rule of thumb helps you choose?</p>
+  </div>
+  <div class="try"><h3>Run 4 jobs of 600 ms each</h3>
+    <canvas id="ball" width="520" height="70" style="width:100%;max-width:520px;height:auto;border:2px solid var(--line);border-radius:10px;background:var(--soft)"></canvas>
+    <div class="row" style="margin-top:10px"><label>Quantum <input type="range" id="qR" min="0" max="7" value="3"> <b id="qV">20 ms</b></label><button class="btn" id="qGo">Run</button></div>
+    <div id="qBars"></div>
+    <div id="qOut" class="note"></div>
+  </div>
+</section>
+
+<!-- 4 deadlines -->
+<section class="st" hidden data-t="4 · Deadlines" data-s="60 frames per second">
+  <div class="left">
+    <h2>A deadline every 16.7 ms</h2>
+    <p class="where">To show a smooth video or game at 60 frames per second, each frame must be ready within <b>16.7 ms</b>. That is a real-time deadline, like in EDF.</p>
+    <span class="tag">Q5 · EDF and missed deadlines</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Open a YouTube video, right-click it → <b>Stats for nerds</b>. Read <b>Dropped frames</b>.</li>
+      <li>While it plays, open several heavy programs. Do dropped frames go up?</li>
+      <li>In Chrome: <kbd>F12</kbd> → <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>P</kbd> → type <b>FPS</b> → <b>Show frame rendering stats</b>.</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> when frames are dropped, is it because of the order of the work, or because there is simply too much work for the time available?</p>
+  </div>
+  <div class="try"><h3>Give each frame some work</h3>
+    <div class="row"><label>Work per frame <input type="range" id="fW" min="0" max="40" value="4"> <b id="fV">4 ms</b></label><button class="btn" id="fGo">Run 2 seconds</button></div>
+    <canvas id="fBall" width="520" height="60" style="width:100%;max-width:520px;height:auto;border:2px solid var(--line);border-radius:10px;background:var(--soft)"></canvas>
+    <div id="fOut"></div>
+  </div>
+</section>
+
+<!-- 5 priority queues and aging -->
+<section class="st" hidden data-t="5 · Priority queues" data-s="Background tabs and boosts">
+  <div class="left">
+    <h2>Foreground first, background later</h2>
+    <p class="where">Operating systems keep several priority levels. The window you use is served first; background work is pushed down. To avoid starvation, Windows gives a <b>priority boost</b> to threads that have waited too long (about 4 seconds): that is <b>aging</b>.</p>
+    <span class="tag">Q6 · multilevel queues</span><span class="tag">Q6 · starvation and aging</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Task Manager → <b>Details</b> → right-click a program → <b>Set priority</b>: Realtime, High, Above normal, Normal, Below normal, Low. These are the levels.</li>
+      <li>Task Manager → <b>Processes</b>: a green leaf means <b>Efficiency mode</b>: Windows moved that background process down.</li>
+      <li>In Chrome, a hidden tab is also moved down: its timers run at most about once per second. Test it with the tool on the right.</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> why is it good to push long background work down? What could happen to it if foreground work never stops, and what fixes that?</p>
+  </div>
+  <div class="try"><h3>Is this tab moved down when you leave it?</h3>
+    <p>This page asks for a tick every 100 ms (10 per second). Press Start, switch to another tab for 10 seconds, then come back.</p>
+    <div class="row"><button class="btn" id="hGo">Start</button></div>
+    <div id="hOut"></div>
+  </div>
+</section>
+<footer>Practical companion for Tutorial 5. The numbers you measure are yours: they change with every computer.</footer>
+</div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST=$$('.st');
+$('#nav').innerHTML=ST.map((s,i)=>`<button role="tab" aria-selected="${i===0}" data-i="${i}"><b>${s.dataset.t}</b><span>${s.dataset.s}</span></button>`).join('');
+function show(i,scroll){ ST.forEach((s,k)=>s.hidden=k!==i); $$('[data-i]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.i===i));
+  $('#pager').innerHTML=(i>0?`<button class="btn ghost" id="pv">Previous: ${ST[i-1].dataset.t}</button>`:'<span></span>')+(i<ST.length-1?`<button class="btn" id="nx">Next: ${ST[i+1].dataset.t}</button>`:'');
+  if(i>0) $('#pv').onclick=()=>show(i-1,true); if(i<ST.length-1) $('#nx').onclick=()=>show(i+1,true);
+  if(scroll){const top=$('#pager').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top});} }
+$$('[data-i]').forEach(b=>b.onclick=()=>show(+b.dataset.i,true)); show(0,false);
+$$('[data-os]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); $$(`[data-for="${g.dataset.os}"]`).forEach(o=>o.hidden=o.dataset.v!==b.dataset.v); }));
+$$('.copy').forEach(b=>b.onclick=()=>{ const t=b.parentElement.innerText.replace(/^Copy\n?/,'').split('\n').filter(l=>!l.trim().startsWith('#')).join('\n').trim(); navigator.clipboard?.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200);}).catch(()=>{}); });
+
+// 1 response vs turnaround
+function rt(){const w=+$('#rW').value||0,f=Math.max(+$('#rF').value||0,w);
+ $('#rOut').innerHTML=`<div class="bars"><div class="bar"><span>Response (first answer)</span><div class="trk"><i style="width:${f?w/f*100:0}%;background:var(--amber)"></i></div><b>${w} ms</b></div><div class="bar"><span>Turnaround (all finished)</span><div class="trk"><i style="width:100%;background:var(--blue)"></i></div><b>${f} ms</b></div></div>
+ <p>The page answered after <b>${w} ms</b> but finished after <b>${f} ms</b>: the turnaround is ${w?(f/w).toFixed(1):'∞'} times the response.</p><p class="note">Response = first answer − request. Turnaround = finished − request. Users feel the response first; the turnaround is the whole stay.</p>`}
+['#rW','#rF'].forEach(s=>$(s).oninput=rt);rt();
+// 2 FCFS vs SJN, all arrive at 0
+const PQ=[['Long report',30],['Photo',2],['Slides',10],['Receipt',3]];
+$('#pqIn').innerHTML=PQ.map((p,i)=>`<label>${p[0]} <input type="number" min="1" max="99" id="pq${i}" value="${p[1]}" style="width:4.5em"></label>`).join('');
+function pq(){const J=PQ.map((p,i)=>({n:p[0],c:Math.max(1,+$('#pq'+i).value||1),col:['--blue','--amber','--green','--purple'][i]}));
+ const run=order=>{let t=0;return order.map(j=>{const w=t;t+=j.c;return {...j,w,f:t}})};
+ const A=run(J),B=run([...J].sort((a,b)=>a.c-b.c));const T=A[A.length-1].f;
+ const draw=(R,title)=>{const aw=R.reduce((s,x)=>s+x.w,0)/R.length,af=R.reduce((s,x)=>s+x.f,0)/R.length;return `<h3 style="margin:12px 0 4px">${title}</h3><div style="display:flex;height:34px;border:2px solid var(--ink);border-radius:6px;overflow:hidden">${R.map(x=>`<div title="${x.n}" style="flex:${x.c} 0 0;background:var(${x.col});color:#fff;font:700 .75rem 'JetBrains Mono';display:grid;place-items:center;overflow:hidden;border-right:2px solid var(--panel)">${x.c>=3?x.n.split(' ')[0]:''}</div>`).join('')}</div><p style="margin:6px 0">Average waiting <b>${aw.toFixed(1)}</b> min · average turnaround <b>${af.toFixed(1)}</b> min</p>`};
+ const big=B[B.length-1];
+ $('#pqOut').innerHTML=draw(A,'FCFS: in the order sent')+draw(B,'Shortest first (SJN)')+`<p class="note">Shortest first gives the smallest average waiting time. The price: “${big.n}” now waits ${big.w} min instead of ${A.find(x=>x.n===big.n).w} min.</p>`}
+PQ.forEach((_,i)=>$('#pq'+i).oninput=pq);pq();
+// 3 real round robin
+const QV=[1,5,10,20,50,100,300,600];const cv=$('#ball'),cx=cv.getContext('2d');let bx=20,dx=4;
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#2F6FDB'}
+(function frame(){cx.clearRect(0,0,cv.width,cv.height);bx+=dx;if(bx>cv.width-20||bx<20)dx=-dx;cx.fillStyle=col('--blue');cx.beginPath();cx.arc(bx,35,16,0,7);cx.fill();requestAnimationFrame(frame)})();
+const qLab=()=>{const q=QV[+$('#qR').value];$('#qV').textContent=q===600?'600 ms (whole job)':q+' ms'};$('#qR').oninput=qLab;qLab();
+let rrBusy=false;
+$('#qGo').onclick=()=>{if(rrBusy)return;rrBusy=true;const q=QV[+$('#qR').value];const names=['A','B','C','D'],cols=['--blue','--amber','--green','--purple'];
+ const left=[600,600,600,600],first=[null,null,null,null],fin=[null,null,null,null];let queue=[0,1,2,3],sw=0;const t0=performance.now();
+ $('#qOut').textContent='Running… watch the ball.';
+ (function slice(){const j=queue.shift();const now=performance.now()-t0;if(first[j]===null)first[j]=now;const d=Math.min(q,left[j]);const s=performance.now();while(performance.now()-s<d){}left[j]-=d;
+  if(left[j]<=0)fin[j]=performance.now()-t0;else queue.push(j);
+  if(queue.length){sw++;setTimeout(slice,0)}else{const T=performance.now()-t0;rrBusy=false;
+   $('#qBars').innerHTML='<div class="bars">'+names.map((n,i)=>`<div class="bar"><span>Job ${n}: first run ${first[i].toFixed(0)} ms</span><div class="trk"><i style="width:${fin[i]/T*100}%;background:var(${cols[i]})"></i></div><b>ends ${fin[i].toFixed(0)}</b></div>`).join('')+'</div>';
+   const avgR=first.reduce((a,b)=>a+b,0)/4;
+   $('#qOut').innerHTML=`<b>${sw}</b> switches. Total time <b>${T.toFixed(0)} ms</b> for 2400 ms of work: <b>${(T-2400).toFixed(0)} ms</b> lost to switching (${((T-2400)/T*100).toFixed(0)}% of the time). Average response <b>${avgR.toFixed(0)} ms</b>.<br>${q>=600?'q is as big as each job: this is FCFS. Job D waits about 1800 ms before it starts, and the ball freezes during each job.':q<=5?'Tiny q: hundreds of switches, and every switch costs time. Compare the lost time with q = 50 or 100 ms.':'Every job starts quickly and the ball keeps moving. Try a bigger q: fewer switches and less time lost, but a longer wait before each job starts. The best q is a balance.'}`}})()};
+// 4 frame deadlines
+const fc=$('#fBall'),fx=fc.getContext('2d');const fl=()=>{$('#fV').textContent=$('#fW').value+' ms'};$('#fW').oninput=fl;fl();
+let fBusy=false;$('#fGo').onclick=()=>{if(fBusy)return;fBusy=true;const W=+$('#fW').value;let last=null,frames=0,miss=0,x=20,v=6;const end=performance.now()+2000;
+ (function f(ts){if(last!==null){frames++;if(ts-last>16.7*1.5)miss++}last=ts;const s=performance.now();while(performance.now()-s<W){}
+  fx.clearRect(0,0,fc.width,fc.height);x+=v;if(x>fc.width-18||x<18)v=-v;fx.fillStyle=col('--green');fx.beginPath();fx.arc(x,30,14,0,7);fx.fill();
+  if(performance.now()<end)requestAnimationFrame(f);else{fBusy=false;const p=frames?miss/frames*100:0;
+   $('#fOut').innerHTML=`<div class="bars"><div class="bar"><span>Frames missed</span><div class="trk"><i style="width:${p}%;background:${p>20?'var(--red)':'var(--green)'}"></i></div><b>${miss} / ${frames}</b></div></div><p>${W>=16?`Each frame needs ${W} ms of work but the deadline is every 16.7 ms: the work does not fit in the time, so deadlines are missed whatever the order. That is an <b>overload</b>.`:`${W} ms of work fits in the 16.7 ms deadline: almost every frame is on time.`}</p>`}})(performance.now());};
+// 5 hidden tab throttling
+let hT=null;$('#hGo').onclick=()=>{clearInterval(hT);let ticks=0,vis=[],hid=[],sec=performance.now();const log=()=>{const n=performance.now();if(n-sec>=1000){(document.hidden?hid:vis).push(ticks*1000/(n-sec));ticks=0;sec=n}};
+ hT=setInterval(()=>{ticks++;log()},100);$('#hOut').innerHTML='<p>Measuring… now switch to another tab for 10 seconds, then come back.</p>';
+ document.onvisibilitychange=()=>{if(!document.hidden){setTimeout(()=>{const a=vis.length?vis.reduce((x,y)=>x+y,0)/vis.length:0,b=hid.length?hid.reduce((x,y)=>x+y,0)/hid.length:null;
+  $('#hOut').innerHTML=`<div class="bars"><div class="bar"><span>Visible tab</span><div class="trk"><i style="width:${Math.min(100,a*10)}%;background:var(--green)"></i></div><b>${a.toFixed(1)} /s</b></div><div class="bar"><span>Hidden tab</span><div class="trk"><i style="width:${b===null?0:Math.min(100,b*10)}%;background:var(--red)"></i></div><b>${b===null?'—':b.toFixed(1)+' /s'}</b></div></div><p>${b===null?'Stay away a bit longer (at least 2 seconds).':b<a*0.6?'While hidden, this tab was moved to a lower level: it got the CPU much less often. Back in front, it is served normally again.':'Your browser did not slow this tab much (short absence, or the page was still playing).'}</p>`},1200)}}};
+
+</script>
+</body>
+</html>
+</body></html>
