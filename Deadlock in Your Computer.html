@@ -1,0 +1,221 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deadlock in Your Computer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --blue:#2F6FDB; --green:#2E8B57; --red:#C0392B; --amber:#B87410; --purple:#7B5EA7; --term:#14161C; --termtx:#D7F5DE;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.12;margin:0}
+.n,code,kbd{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:.98rem} nav button span{font-size:.8rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.st[hidden]{display:none!important}
+.st{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px}
+@media (max-width:860px){.st{grid-template-columns:1fr}}
+.left h2{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.where{color:var(--muted);margin:0 0 12px}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--soft);margin:0 6px 10px 0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.box h3{font-size:1rem;margin-bottom:6px}
+.os{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.os button{font:inherit;font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.os button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.box ol{margin:0;padding-left:20px} .box li{margin:4px 0}
+kbd{font-size:.85rem;background:var(--soft);border:1px solid var(--line);border-bottom-width:3px;border-radius:5px;padding:0 6px}
+code{font-size:.9rem;background:var(--soft);padding:1px 5px;border-radius:4px}
+.term{background:var(--term);color:var(--termtx);border-radius:10px;padding:10px 12px;font:500 .9rem "JetBrains Mono",monospace;white-space:pre-wrap;overflow-x:auto;position:relative;margin-top:8px}
+.term .c{color:#8C93A6}
+.copy{position:absolute;top:6px;right:6px;font:700 .75rem "Atkinson Hyperlegible",sans-serif;padding:2px 8px;border-radius:6px;border:1px solid #444;background:#2A2D36;color:#fff;cursor:pointer}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:10px 14px;border-radius:0 8px 8px 0}
+.try{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:16px;min-width:0}
+.try h3{font-size:1.05rem;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input[type=text],input[type=number],select{font:inherit;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn{font:inherit;font-weight:700;font-size:.92rem;padding:7px 12px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:wait}
+table.t{border-collapse:collapse;font-size:.95rem;width:100%}
+table.t td,table.t th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{font-size:.78rem;color:var(--muted)}
+.big{font:700 1.35rem "JetBrains Mono",monospace;word-break:break-all}
+.bits{font:700 1.05rem "JetBrains Mono",monospace;word-break:break-all}
+.bits .pg{color:var(--blue)} .bits .off{color:var(--amber)}
+.bars{display:grid;gap:6px;margin-top:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 90px;gap:8px;align-items:center;font-size:.9rem}
+.trk{height:18px;background:var(--soft);border-radius:9px;overflow:hidden}
+.trk i{display:block;height:100%;border-radius:9px;transition:width .6s}
+.note{font-size:.88rem;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:160px;border-bottom:2px solid var(--ink);border-left:2px solid var(--ink);padding:0 4px;margin:8px 0 4px}
+.chart div{flex:1;border-radius:4px 4px 0 0;min-height:2px;position:relative}
+.chart div span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:.72rem;color:var(--muted)}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Deadlock in Your Computer</h1>
+  <p>Operating Systems, Tutorial 6 in practice. Frozen programs, locked files, network collisions and starving background tasks happen on your own computer. In each station, look on your computer, then use the tool on the right.</p>
+</header>
+<nav role="tablist" aria-label="Stations" id="nav"></nav>
+<div class="pager" id="pager"></div>
+
+<section class="st" data-t="1 · Not responding" data-s="Find who waits for whom">
+  <div class="left">
+    <h2>“(Not Responding)”: who is it waiting for?</h2>
+    <p class="where">When a window freezes, it is often waiting for another process. Windows can show you the <b>wait chain</b>: the same idea as a wait-for graph used to detect deadlock.</p>
+    <span class="tag">Q2b · detection</span><span class="tag">Q4 · resource graph</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="wc"><button class="on" data-v="w">Windows</button><button data-v="m">Mac</button></div>
+      <div data-for="wc" data-v="w"><ol><li>Press <kbd>Win</kbd> + <kbd>R</kbd>, type <code>resmon</code>, Enter (Resource Monitor).</li><li><b>CPU</b> tab → right-click any process → <b>Analyze Wait Chain</b>.</li><li>“not waiting” = fine. A list of threads = it waits for them. If the chain comes back to the first process, that is a deadlock.</li></ol></div>
+      <div data-for="wc" data-v="m" hidden><ol><li><b>Activity Monitor</b> → select an app shown as “Not Responding” → <b>⋯ → Sample Process</b>: the report shows what its threads are waiting for.</li></ol></div>
+    </div>
+    <p class="think"><strong>Think:</strong> a chain A → B → C that ends is just waiting. When does waiting become a deadlock?</p>
+  </div>
+  <div class="try"><h3>Draw a wait chain</h3>
+    <p class="note" style="margin-top:0">One line per wait, like <code>Word -> Excel</code> (Word waits for Excel).</p>
+    <textarea id="wIn" rows="5" style="width:100%;font-family:'JetBrains Mono',monospace;padding:8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)">Word -> Excel
+Excel -> Teams
+Teams -> Word
+Chrome -> Teams</textarea>
+    <div class="row"><button class="btn" id="wGo">Find a cycle</button></div>
+    <div id="wOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="2 · Locked files" data-s="Hold and wait, lock order">
+  <div class="left">
+    <h2>“The file is open in another program”</h2>
+    <p class="where">A file opened by one program is <b>locked</b>: another program cannot change or delete it. That is mutual exclusion. If two programs each lock one file and wait for the other's file, they deadlock.</p>
+    <span class="tag">Q1 · deadlock</span><span class="tag">Q2c · prevention</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Open an Excel or Word file and leave it open.</li><li>In File Explorer, try to rename or delete that file: <b>“The action can't be completed because the file is open in…”</b></li><li>Close the program and try again: it works. The lock was released.</li></ol>
+      <p class="note">Databases and OneDrive/Google Drive use the same idea when two people edit at the same time.</p>
+    </div>
+    <p class="think"><strong>Think:</strong> if every program had to lock files in the same order (A before B), could a circular wait still happen?</p>
+  </div>
+  <div class="try"><h3>Two programs, two files</h3>
+    <div class="row"><label>Program 1 locks <select id="o1"><option>A then B</option><option>B then A</option></select></label><label>Program 2 locks <select id="o2"><option>B then A</option><option>A then B</option></select></label><button class="btn" id="lGo">Run</button></div>
+    <div id="lOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="3 · Network collisions" data-s="Livelock and random backoff">
+  <div class="left">
+    <h2>Two devices talking at the same time</h2>
+    <p class="where">When two devices send on the same channel at the same time, the signals collide. If both wait exactly the same time and resend, they collide again and again: a livelock. Wi-Fi and Ethernet wait a <b>random</b> time to escape it.</p>
+    <span class="tag">Q1 · livelock</span><span class="tag">Q5 · busy without progress</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Windows: <kbd>Win</kbd> + <kbd>R</kbd> → <code>cmd</code> → <code>netstat -e</code>: look at <b>Errors</b> and <b>Discards</b>.</li><li>On a crowded Wi-Fi (library, hostel at night), run <code>ping -n 50 8.8.8.8</code>: lost packets and jumps in time are partly collisions and retries.</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> why does adding randomness turn a livelock into normal work? Where else could you add randomness?</p>
+  </div>
+  <div class="try"><h3>Retry with a fixed or a random wait</h3>
+    <div class="row"><label>Wait before retry <select id="bo"><option value="fixed">always 2 slots</option><option value="rand">random 0–3 slots</option></select></label><button class="btn" id="bGo">Send</button></div>
+    <div id="bOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="4 · Priorities" data-s="Starving a background task">
+  <div class="left">
+    <h2>Low priority can mean never</h2>
+    <p class="where">Windows lets you set the priority of a process. With strict priorities, a low process only runs when nobody important wants the CPU. Windows prevents real starvation with a <b>priority boost</b> for threads that waited about 4 seconds: aging.</p>
+    <span class="tag">Q3 · detect starvation</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li>Task Manager → <b>Details</b> → right-click a program → <b>Set priority</b> → <b>Low</b>.</li><li>Task Manager → <b>Details</b> → right-click a column title → <b>Select columns</b> → tick <b>CPU time</b>: it shows how much CPU each process got in total. A process with 0:00:00 for a long time is not served.</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> which column would you watch to detect a starving process? What would you store in the PCB to compute it?</p>
+  </div>
+  <div class="try"><h3>CPU share with and without aging</h3>
+    <div class="row"><label>Busy high-priority work <input type="range" id="hp" min="50" max="100" value="100"> <b id="hpV">100%</b></label><label class="row" style="gap:6px"><input type="checkbox" id="ag"> aging</label></div>
+    <div id="hOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="5 · Disk queue" data-s="Thrashing between tracks">
+  <div class="left">
+    <h2>A hard disk going back and forth</h2>
+    <p class="where">A hard disk (HDD) moves an arm to the right track. If two programs keep asking for opposite ends of the disk, the arm travels most of the time: lots of movement, little useful work.</p>
+    <span class="tag">Q5 · disk arm</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <ol><li><kbd>Win</kbd> + <kbd>R</kbd> → <code>resmon</code> → <b>Disk</b> tab → <b>Storage</b>: look at <b>Disk Queue Length</b>.</li><li>Copy two big folders at the same time, then one after the other. On an HDD, doing both at once is often slower in total. (On an SSD there is no arm.)</li></ol>
+    </div>
+    <p class="think"><strong>Think:</strong> count the arm's trips per second for your own numbers. When is it a livelock and when is it only slow?</p>
+  </div>
+  <div class="try"><h3>Arm calculator</h3>
+    <div class="row"><label>one-way move <input type="number" id="dm" value="8" min="1" style="width:4em"> ms</label><label>time <input type="number" id="dt" value="3" min="1" style="width:4em"> s</label><label>reads done before switching <select id="dr"><option value="0">0 (commands change mid-move)</option><option value="1">1</option><option value="8">8</option></select></label></div>
+    <div id="dOut"></div>
+  </div>
+</section>
+<footer>Practical companion for Tutorial 6. The numbers here are examples, not the tutorial answers.</footer>
+</div>
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST=$$('.st');
+$('#nav').innerHTML=ST.map((s,i)=>`<button role="tab" aria-selected="${i===0}" data-i="${i}"><b>${s.dataset.t}</b><span>${s.dataset.s}</span></button>`).join('');
+function show(i,scroll){ ST.forEach((s,k)=>s.hidden=k!==i); $$('[data-i]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.i===i));
+  $('#pager').innerHTML=(i>0?`<button class="btn ghost" id="pv">Previous: ${ST[i-1].dataset.t}</button>`:'<span></span>')+(i<ST.length-1?`<button class="btn" id="nx">Next: ${ST[i+1].dataset.t}</button>`:'');
+  if(i>0) $('#pv').onclick=()=>show(i-1,true); if(i<ST.length-1) $('#nx').onclick=()=>show(i+1,true);
+  if(scroll){const top=$('#pager').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top});} }
+$$('[data-i]').forEach(b=>b.onclick=()=>show(+b.dataset.i,true)); show(0,false);
+$$('[data-os]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); $$(`[data-for="${g.dataset.os}"]`).forEach(o=>o.hidden=o.dataset.v!==b.dataset.v); }));
+$$('.copy').forEach(b=>b.onclick=()=>{ const t=b.parentElement.innerText.replace(/^Copy\n?/,'').split('\n').filter(l=>!l.trim().startsWith('#')).join('\n').trim(); navigator.clipboard?.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200);}).catch(()=>{}); });
+
+function wfind(){const edges=$('#wIn').value.split('\n').map(l=>l.split(/->|→/).map(s=>s.trim())).filter(x=>x.length===2&&x[0]&&x[1]);const g={};edges.forEach(([a,b])=>(g[a]=g[a]||[]).push(b));
+ let cyc=null;const st={},path=[];function dfs(u){st[u]=1;path.push(u);for(const v of g[u]||[]){if(st[v]===1){cyc=path.slice(path.indexOf(v)).concat(v);return true}if(!st[v]&&dfs(v))return true}st[u]=2;path.pop();return false}
+ for(const u of Object.keys(g)){if(!st[u]&&dfs(u))break}
+ $('#wOut').innerHTML=`<p>${edges.length} wait${edges.length===1?'':'s'} read.</p>`+(cyc?`<p style="color:var(--red);font-weight:700">Cycle found: ${cyc.map(esc).join(' → ')}</p><p class="note">Every process in the cycle waits for the next one: none can continue. That is a deadlock. The others (outside the cycle) just wait for it.</p>`:`<p style="color:var(--green);font-weight:700">No cycle: these are only waits.</p><p class="note">The chain ends somewhere: the last process is running, so everybody will continue later.</p>`)}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+$('#wGo').onclick=wfind;wfind();
+function locks(){const o=[$('#o1').value[0]+$('#o1').value.slice(-1),$('#o2').value[0]+$('#o2').value.slice(-1)];const held={A:null,B:null};const step=[0,0];const log=[];let t=0,done=[false,false];
+ while(t<12&&!(done[0]&&done[1])){let moved=false;for(const p of [0,1]){if(done[p])continue;const f=o[p][step[p]];if(held[f]===null){held[f]=p;log.push(`Program ${p+1} locks file ${f}.`);step[p]++;moved=true;if(step[p]===2){done[p]=true;log.push(`Program ${p+1} has both files, saves, and unlocks ${o[p][0]} and ${o[p][1]}.`);held[o[p][0]]=null;held[o[p][1]]=null}}else if(held[f]!==p){}}
+  if(!moved){log.push(`Program 1 waits for file ${o[0][step[0]]} (held by program 2) and program 2 waits for file ${o[1][step[1]]} (held by program 1): <b style="color:var(--red)">deadlock</b>.`);break}t++}
+ $('#lOut').innerHTML=`<ol>${log.map(x=>`<li>${x}</li>`).join('')}</ol><p class="note">${o[0]===o[1]?'Same order for both: the second program waits at the first file, so a circle can never close. This breaks the <b>circular wait</b>.':'Opposite orders: each one can grab its first file and wait for the other\'s.'}</p>`}
+$('#lGo').onclick=locks;['#o1','#o2'].forEach(s=>$(s).onchange=locks);locks();
+function backoff(){const rnd=$('#bo').value==='rand';let t=0,a=0,b=0,col=0,ok=false;const rows=[];
+ for(let k=0;k<12&&!ok;k++){const ta=t+a,tb=t+b;if(ta===tb){col++;rows.push(`slot ${ta}: both send → <b style="color:var(--red)">collision</b>`);t=ta+1;a=rnd?Math.floor(Math.random()*4):2;b=rnd?Math.floor(Math.random()*4):2}else{ok=true;rows.push(`slot ${Math.min(ta,tb)}: device ${ta<tb?'1':'2'} sends alone → <b style="color:var(--green)">delivered</b>`,`slot ${Math.max(ta,tb)}: the other device sends → <b style="color:var(--green)">delivered</b>`)}}
+ $('#bOut').innerHTML=`<ol>${rows.map(r=>`<li>${r}</li>`).join('')}</ol><p class="note">${ok?`Delivered after ${col} collision${col===1?'':'s'}. Random waits make the two devices choose different slots.`:`${col} collisions and still nothing delivered: both always wait the same time. The channel is busy, but no progress: <b>livelock</b>.`}</p>`}
+$('#bGo').onclick=backoff;$('#bo').onchange=backoff;backoff();
+function prio(){const hp=+$('#hp').value,ag=$('#ag').checked;$('#hpV').textContent=hp+'%';let low=100-hp;if(ag)low=Math.max(low,5);
+ $('#hOut').innerHTML=`<div class="bars"><div class="bar"><span>High-priority work</span><div class="trk"><i style="width:${100-low}%;background:var(--blue)"></i></div><b>${100-low}%</b></div><div class="bar"><span>Low-priority backup</span><div class="trk"><i style="width:${low}%;background:${low?'var(--green)':'var(--red)'}"></i></div><b>${low}%</b></div></div><p class="note">${low===0?'The backup gets 0% of the CPU: it is starving. A detector would see its waiting time grow without limit.':ag&&hp===100?'Aging (like the Windows priority boost) gives the backup a short turn after a long wait: about 5% here.':'There is free CPU time, so the backup runs.'}</p>`}
+$('#hp').oninput=prio;$('#ag').onchange=prio;prio();
+function disk(){const m=Math.max(1,+$('#dm').value||1),T=Math.max(1,+$('#dt').value||1)*1000,r=+$('#dr').value;const readMs=1;const cycle=r?2*m+2*r*readMs:2*m;const trips=Math.floor(T/cycle);
+ $('#dOut').innerHTML=`<ol><li>Round trip = ${m} + ${m}${r?` + reading time ${2*r*readMs} ms`:''} = <b>${cycle} ms</b>.</li><li>Round trips in ${T} ms = ${T} ÷ ${cycle} = <b>${trips}</b> (= ${trips*2} one-way moves).</li><li>Useful reads = <b>${trips*2*r}</b>.</li></ol><p class="note">${r?'Each stop does real work: the disk is slow but progresses.':'Moving all the time with 0 reads: busy without progress, a livelock.'}</p>`}
+['#dm','#dt','#dr'].forEach(s=>$(s).oninput=disk);disk();
+
+</script>
+</body>
+</html>
+</body></html>

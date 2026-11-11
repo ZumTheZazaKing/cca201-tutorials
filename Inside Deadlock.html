@@ -1,0 +1,511 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Inside Deadlock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&family=Patrick+Hand&family=Patrick+Hand&display=swap">
+<style>
+/* Layout: same family as Inside Scheduling (Tutorial 4): one tab per tutorial question, an intro (real life, method, think) then a live demo. A control room: Tabs for four stations; the simulator shows a clock, the CPU, the ready queue and a Gantt chart that grows step by step. Each job keeps one colour everywhere. */
+:root{
+  --bg:#EFF1EC; --panel:#FFFFFF; --ink:#1E2622; --muted:#59645E; --line:#CDD4CE; --soft:#E4E9E4;
+  --on:#E39B12; --on-s:#FDF0D2; --off:#7A8698; --wire:#9AA5B4;
+  --accent:#1F7A5A; --accent-s:#DCEFE6; --ok:#1C7C47; --ok-s:#DBF1E3; --bad:#B23A30; --bad-s:#F8DFDB;
+  --g1:#2F5DAA; --g2:#C2410C; --g3:#1C7C47; --g4:#9333EA; --g5:#B4235D;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+  --on:#F5B83D; --on-s:#3D3018; --off:#7E8A9C; --wire:#5B6676;
+  --accent:#4CC392; --accent-s:#183A2C; --ok:#5ED091; --ok-s:#173525; --bad:#F2877B; --bad-s:#43211E;
+  --g1:#8DB0F0; --g2:#FF9A62; --g3:#5ED091; --g4:#C79BFF; --g5:#FF86B8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131815; --panel:#1C2320; --ink:#E6ECE8; --muted:#A0ACA6; --line:#34403A; --soft:#25302B;
+  --on:#F5B83D; --on-s:#3D3018; --off:#7E8A9C; --wire:#5B6676;
+  --accent:#4CC392; --accent-s:#183A2C; --ok:#5ED091; --ok-s:#173525; --bad:#F2877B; --bad-s:#43211E;
+  --g1:#8DB0F0; --g2:#FF9A62; --g3:#5ED091; --g4:#C79BFF; --g5:#FF86B8; color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:400 18px/1.55 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.wrap>*{min-width:0;max-width:100%}
+section.wrap{width:100%}
+h1{font:800 clamp(2rem,5vw,3.1rem)/1.05 var(--display);margin:0;letter-spacing:-.02em;text-wrap:balance}
+h2{font:800 clamp(1.3rem,2.6vw,1.75rem)/1.2 var(--display);margin:0;text-wrap:balance}
+h3{font:600 1.08rem/1.3 var(--display);margin:0}
+p{margin:0}
+.lead{color:var(--muted);max-width:66ch;margin-top:8px}
+.muted{color:var(--muted)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.nb{text-decoration:overline;text-decoration-thickness:2px}
+.nb+.nb{margin-left:.14em}
+.mono,code{font-family:var(--mono);font-size:.92em}
+nav.tabs{display:flex;gap:8px;flex-wrap:wrap}
+nav.tabs button{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 14px;cursor:pointer;text-align:left;line-height:1.25}
+nav.tabs b{display:block;font:600 1rem var(--display)} nav.tabs span{font-size:.82rem;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav.tabs button[aria-selected="true"] span{color:var(--panel)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.grid2>*{min-width:0}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font-weight:700;padding:8px 15px;border-radius:10px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:4px 10px;font-size:.92rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.fb{font-weight:700}.fb.ok{color:var(--ok)}.fb.no{color:var(--bad)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:700;font-size:.95rem}
+.chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-s)}
+.life{border-left:5px solid var(--on);background:var(--on-s);border-radius:0 10px 10px 0;padding:10px 14px}
+.life b{font:600 .78rem var(--display);text-transform:uppercase;letter-spacing:.06em;display:block;color:var(--muted)}
+.note{border-left:5px solid var(--accent);background:var(--accent-s);border-radius:0 10px 10px 0;padding:10px 14px}
+.scroll{overflow-x:auto}
+table.t{border-collapse:collapse;font-variant-numeric:tabular-nums}
+table.t th,table.t td{border:1px solid var(--line);padding:6px 12px;text-align:center;font-family:var(--mono)}
+table.t th{font-family:var(--display);font-size:.9rem;background:var(--soft)}
+td.b1{color:var(--on);font-weight:700} td.b0{color:var(--off)}
+td.diff{background:var(--bad-s)}
+/* bench */
+.bench{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.sw{display:flex;flex-direction:column;gap:14px}
+.sw button{width:92px;white-space:nowrap;border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;font:700 1rem var(--mono)}
+.sw button .k{width:22px;height:22px;border-radius:50%;background:var(--off);transition:background .2s}
+.sw button[aria-pressed="true"]{border-color:var(--on)} .sw button[aria-pressed="true"] .k{background:var(--on)}
+svg.gate{width:100%;max-width:340px;height:auto;display:block;margin:auto}
+svg.gate .body{fill:var(--panel);stroke:var(--ink);stroke-width:3}
+svg.gate .w{stroke:var(--wire);stroke-width:4;fill:none;transition:stroke .2s}
+svg.gate .w.on{stroke:var(--on)}
+svg.gate .bub{fill:var(--panel);stroke:var(--ink);stroke-width:3}
+svg.gate text{fill:var(--muted);font:600 14px var(--mono)}
+.lamp{width:74px;height:74px;border-radius:50%;border:3px solid var(--line);display:grid;place-items:center;font:700 1.6rem var(--mono);color:var(--off);background:var(--soft);transition:all .2s}
+.lamp.on{background:var(--on);border-color:var(--on);color:#2A1B00;box-shadow:0 0 28px var(--on)}
+@media (prefers-reduced-motion: reduce){.lamp,.sw .k,svg.gate .w{transition:none}}
+.cellbtn{min-width:46px;border:2px dashed var(--line);background:var(--panel);border-radius:8px;cursor:pointer;font:700 1rem var(--mono);padding:2px 8px}
+.cellbtn.set{border-style:solid}
+.cellbtn.right{border-color:var(--ok);background:var(--ok-s)} .cellbtn.wrong{border-color:var(--bad);background:var(--bad-s)}
+/* laws */
+.laws{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.law{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.law .f{font:600 1.08rem var(--mono)}
+.law small{color:var(--muted);font-size:.92rem}
+.expr{font:600 1.25rem/1.9 var(--mono);word-break:break-word}
+.br{display:inline-block;border-radius:8px;padding:0 3px;transition:background .3s}
+.br.twin{background:var(--on-s);outline:2px solid var(--on)}
+.br.gone{opacity:.25;text-decoration:line-through}
+input[type=text]{padding:8px 11px;border-radius:9px;border:2px solid var(--line);background:var(--panel);font-family:var(--mono);width:min(100%,24em)}
+/* kmap */
+.kmap{border-collapse:separate;border-spacing:4px;font-family:var(--mono)}
+.kmap th{font:600 .95rem var(--mono);color:var(--muted);padding:2px 6px}
+.kmap th.corner{font-size:.8rem;text-align:right;line-height:1.2}
+.kmap td{padding:0}
+.kc{width:58px;height:54px;border:2px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer;font:700 1.25rem var(--mono);position:relative}
+.kc small{position:absolute;top:2px;left:5px;font:500 .62rem var(--mono);color:var(--muted)}
+.kc.v1{color:var(--on);border-color:var(--on)}
+.kc.v0{color:var(--off)}
+.kc.right{background:var(--ok-s)} .kc.wrong{background:var(--bad-s);border-color:var(--bad)}
+.dots{position:absolute;bottom:3px;right:4px;display:flex;gap:2px}
+.dots i{width:9px;height:9px;border-radius:50%;display:block}
+.groups{display:flex;flex-direction:column;gap:8px}
+.grp{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;background:var(--panel);text-align:left}
+.grp .sq{width:14px;height:14px;border-radius:4px;margin-top:5px}
+.grp[aria-pressed="true"]{border-color:var(--ink);background:var(--soft)}
+.term{font:700 1.1rem var(--mono)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.steps li::before{counter-increment:s;content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;font:600 .95rem var(--display)}
+.steps .law-n{font:600 .78rem var(--display);text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+.steps .mono{font-size:1.08rem;font-weight:600;word-break:break-word}
+.gray{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-family:var(--mono)}
+.gray span{border:2px solid var(--line);border-radius:8px;padding:2px 8px;background:var(--panel)}
+.gray span b{color:var(--on)}
+.signs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.signs{grid-template-columns:minmax(0,1fr)}}
+.signs>div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:start;background:var(--soft);border-radius:12px;padding:10px 12px}
+.signs .big{font:800 2rem/1 var(--mono);text-align:center;color:var(--accent)}
+.lesson{border:2px solid var(--ink)}
+.lt{font-size:1.3rem}
+.lx{font-size:1.15rem;max-width:70ch;min-height:3em}
+.big-expr{font-size:1.6rem;line-height:2.1;background:var(--soft);border-radius:12px;padding:10px 14px}
+.br.sorted{background:var(--accent-s);outline:2px solid var(--accent)}
+.br.t1{background:var(--on-s);outline:2px solid var(--on)}
+.br.t2{background:var(--ok-s);outline:2px solid var(--ok)}
+.arrow-sw{color:var(--accent);font-weight:800}
+details.card summary{cursor:pointer;font-family:var(--display)}
+table.t tr.pick td{background:var(--accent-s)}
+table.t tr[data-row]{cursor:pointer}
+.kc.hot{outline:4px solid var(--accent);outline-offset:1px}
+th.hot{color:var(--on)!important;background:var(--on-s);border-radius:6px}
+.coltest td.out{opacity:.35;text-decoration:line-through}
+.coltest td.keep{background:var(--ok-s);font-weight:700}
+.coltest th{font-size:.85rem}
+.verdict{font:700 1.3rem var(--mono)}
+.actbox{border:2px dashed var(--accent);border-radius:12px;padding:10px 14px;background:var(--panel);font-size:1.05rem}
+.actbox>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.actbox ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.actbox .now{background:var(--on-s);border-radius:6px;padding:0 4px}
+.actbox .bitrow{font:600 1.05rem var(--mono);letter-spacing:.08em}
+.actbox .bitrow b{color:var(--on);text-decoration:underline}
+.stages{display:flex;gap:8px;flex-wrap:wrap}
+.stages span{border:2px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:700}
+.stages b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--panel);font-size:.8rem;margin-right:6px}
+.stagepill{font:600 .82rem var(--display);text-transform:uppercase;letter-spacing:.06em;background:var(--ink);color:var(--panel);border-radius:999px;padding:3px 12px}
+.kc.cur{outline:4px solid var(--accent);outline-offset:1px}
+.kc.bad{outline:4px solid var(--bad);outline-offset:1px}
+.kc.fresh{animation:pop .6s ease}
+@keyframes pop{0%{transform:scale(1.25);background:var(--on-s)}100%{transform:scale(1)}}
+table.t tr.now td{background:var(--on-s)}
+.legend2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.95rem}
+.legend2 span b{font-family:var(--mono)}
+@media (prefers-reduced-motion: reduce){.kc.fresh{animation:none}}
+.scview{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
+.scview>*{min-width:0}
+.outcol{display:flex;flex-direction:column;gap:3px}
+.outcol div{display:grid;grid-template-columns:2.2em 2em;gap:6px;align-items:center;font-family:var(--mono);border-radius:6px;padding:1px 6px}
+.blkrow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.blkrow .lab{width:5.5em;font:600 .85rem var(--display);color:var(--muted)}
+.bx{width:52px;height:50px;border-radius:10px;border:2px solid var(--line);display:grid;place-items:center;font:700 1.25rem var(--mono);position:relative;background:var(--panel)}
+.bx small{position:absolute;top:1px;left:4px;font:500 .62rem var(--mono);color:var(--muted)}
+.bx.one{color:var(--on);border-color:var(--on)}
+.bx.sw{outline:4px solid var(--g4);outline-offset:1px}
+.swapnote{font:700 1rem var(--display);color:var(--g4)}
+.cheat{border:2px solid var(--on);background:var(--on-s);border-radius:12px;padding:10px 14px}
+.cheat>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.cheat ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.paper{--rule:color-mix(in srgb,var(--accent) 22%,transparent);background:var(--panel);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,var(--rule) 35px,var(--rule) 36px);border:1px solid var(--line);border-left:4px solid color-mix(in srgb,var(--bad) 60%,transparent);border-radius:6px;padding:4px 16px 12px 22px;font:400 1.3rem/36px "Patrick Hand","Comic Sans MS",cursive;overflow-x:auto}
+.paper .pl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline}
+.paper .pl .plaw{color:var(--accent);font-size:1.05rem;white-space:nowrap}
+.paper .st{font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.paper .fin{border:2px solid var(--ok);border-radius:6px;padding:0 8px;display:inline-block;line-height:32px}
+.paper table.kmap{font-family:inherit;margin:4px 0}
+.paper table.kmap td,.paper table.kmap th{border:1.5px solid var(--ink);width:44px;height:36px;text-align:center;font:400 1.2rem "Patrick Hand",cursive}
+.paper table.kmap{border-collapse:collapse}
+@media (max-width:560px){.paper .pl{grid-template-columns:minmax(0,1fr)}.paper .pl .plaw{white-space:normal}}
+.j0{--jc:#2F5DAA}.j1{--jc:#C2410C}.j2{--jc:#1C7C47}.j3{--jc:#9333EA}.j4{--jc:#B4235D}.j5{--jc:#0E7490}.j6{--jc:#A16207}.jidle{--jc:var(--line)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .j0{--jc:#8DB0F0}:root:not([data-theme="light"]) .j1{--jc:#FF9A62}:root:not([data-theme="light"]) .j2{--jc:#5ED091}:root:not([data-theme="light"]) .j3{--jc:#C79BFF}:root:not([data-theme="light"]) .j4{--jc:#FF86B8}:root:not([data-theme="light"]) .j5{--jc:#5FD4EA}:root:not([data-theme="light"]) .j6{--jc:#F2C14E}}
+:root[data-theme="dark"] .j0{--jc:#8DB0F0}:root[data-theme="dark"] .j1{--jc:#FF9A62}:root[data-theme="dark"] .j2{--jc:#5ED091}:root[data-theme="dark"] .j3{--jc:#C79BFF}:root[data-theme="dark"] .j4{--jc:#FF86B8}:root[data-theme="dark"] .j5{--jc:#5FD4EA}:root[data-theme="dark"] .j6{--jc:#F2C14E}
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--jc);background:color-mix(in srgb,var(--jc) 14%,var(--panel));border-radius:10px;padding:3px 10px;font:700 1rem var(--mono)}
+.chip small{font:500 .78rem var(--mono);color:var(--muted)}
+.room{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.3fr);gap:14px;align-items:stretch}
+@media (max-width:860px){.room{grid-template-columns:minmax(0,1fr)}}
+.clock{border:2px solid var(--ink);border-radius:14px;padding:8px 16px;text-align:center;background:var(--panel);min-width:110px}
+.clock b{display:block;font:800 2.4rem/1.1 var(--mono)}
+.clock span{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cpu{border:3px solid var(--ink);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;background:var(--soft)}
+.cpu>span,.rq>span{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rq{border:2px dashed var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.rq .lane{display:flex;gap:6px;flex-wrap:wrap;min-height:34px;align-items:center}
+.gantt{display:flex;min-width:100%;height:46px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--panel)}
+.gantt div{border-right:2px solid var(--ink);display:grid;place-items:center;font:700 .95rem var(--mono);background:color-mix(in srgb,var(--jc) 26%,var(--panel));color:var(--ink);min-width:0;overflow:hidden}
+.gantt div.idle{background:repeating-linear-gradient(45deg,var(--soft) 0 6px,var(--panel) 6px 12px);color:var(--muted)}
+.gantt div.future{background:var(--panel);border-right:1px dashed var(--line)}
+.ticks{position:relative;height:20px;font:500 .8rem var(--mono);color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.gwrap{overflow-x:auto;padding-bottom:4px}
+.gin{min-width:520px;padding-right:16px}
+table.t td.l{text-align:left}
+table.t input{width:4em;padding:3px 6px;border-radius:6px;border:2px solid var(--line);background:var(--panel);font-family:var(--mono)}
+.algo{display:flex;gap:6px;flex-wrap:wrap}
+.algo button{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:6px 12px;cursor:pointer;text-align:left;line-height:1.2}
+.algo button b{display:block;font:600 1rem var(--display)} .algo button span{font-size:.78rem;color:var(--muted)}
+.algo button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--panel)} .algo button[aria-pressed="true"] span{color:var(--panel)}
+.actbox{border:2px dashed var(--accent);border-radius:12px;padding:10px 14px;background:var(--panel);font-size:1.05rem}
+.actbox>b{font:600 .8rem var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.actbox ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:3px}
+.paper{--rule:color-mix(in srgb,var(--accent) 22%,transparent);background:var(--panel);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 35px,var(--rule) 35px,var(--rule) 36px);border:1px solid var(--line);border-left:4px solid color-mix(in srgb,var(--bad) 60%,transparent);border-radius:6px;padding:4px 16px 12px 22px;font:400 1.25rem/36px "Patrick Hand","Comic Sans MS",cursive;overflow-x:auto}
+.paper .st{font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.paper table{border-collapse:collapse;margin:4px 0;font:inherit;line-height:1.5}
+.paper td,.paper th{border:1.5px solid var(--ink);padding:0 10px;text-align:center}
+.paper .pg{display:inline-flex;border:1.5px solid var(--ink);margin:4px 0;line-height:34px}
+.paper .pg span{border-right:1.5px solid var(--ink);padding:0 4px;text-align:center}
+.paper .fin{border:2px solid var(--ok);border-radius:6px;padding:0 8px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{border:1px solid var(--line);border-radius:12px;padding:8px 14px;background:var(--panel);min-width:120px}
+.stat b{display:block;font:800 1.5rem var(--mono)} .stat span{font-size:.85rem;color:var(--muted)}
+.stat.warn{border-color:var(--bad);background:var(--bad-s)}
+.lanes{display:flex;flex-direction:column;gap:8px}
+.qlane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--panel)}
+@media (max-width:560px){.qlane{grid-template-columns:minmax(0,1fr)}}
+.qlane .nm{font:600 .95rem var(--display)} .qlane .nm small{display:block;font:400 .8rem var(--body);color:var(--muted)}
+.timeline3{position:relative;height:120px;margin:10px 0 0}
+.bar3{position:absolute;height:34px;border-radius:6px;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.mark{position:absolute;top:0;bottom:22px;border-left:3px solid var(--ink)}
+.mark span{position:absolute;bottom:-22px;transform:translateX(-50%);font:600 .8rem var(--display);white-space:nowrap}
+.brace{position:absolute;height:22px;border:2px solid var(--c);border-top:0;border-radius:0 0 8px 8px;font:700 .82rem var(--display);color:var(--c);display:grid;place-items:end center}
+.frame li{margin-bottom:4px}
+.frame .blank{display:inline-block;min-width:8em;border-bottom:2px dotted var(--muted)}
+
+.intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:860px){.intro{grid-template-columns:minmax(0,1fr)}}
+.think{font-style:italic;border-left:5px solid var(--accent);padding:6px 12px;background:var(--soft);border-radius:0 10px 10px 0;margin:0}
+footer{color:var(--muted);font-size:.9rem}
+.mono-in{padding:6px 9px;border-radius:8px;border:2px solid var(--line);background:var(--panel);font-family:var(--mono)}
+.chips button{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:700;font-size:.95rem}
+.chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-s)}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Inside Deadlock</h1>
+    <p class="lead">CCA201 / CST232 Operating Systems, Tutorial 6. Each tab explains one question with something you see every day, then lets you try it live. The examples are not the tutorial answers: use them to think, then answer the tutorial questions yourself.</p>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Tutorial 6 questions" id="tabs"></nav>
+  <div class="card">
+    <h2 id="qTitle"></h2>
+    <div class="intro">
+      <div class="life"><b>In real life</b><div id="qLife"></div></div>
+      <div class="note"><b>The method</b><ol id="qHow" style="margin:4px 0 0;padding-left:22px"></ol></div>
+    </div>
+    <p class="think" id="qThink"></p>
+  </div>
+
+  <section id="d1" class="wrap" style="gap:16px">
+    <div class="card">
+      <h2>Watch: stuck, busy, or left behind?</h2>
+      <div class="chips" role="group" aria-label="Scene" id="sc"></div>
+      <canvas id="cv1" width="640" height="150" style="width:100%;height:auto;border:2px solid var(--line);border-radius:12px;background:var(--soft)"></canvas>
+      <div class="stats" id="s1"></div>
+      <div class="actbox" id="a1"></div>
+      <div class="row"><button class="btn" id="p1">▶ Play</button><button class="btn ghost" id="r1">Restart</button><button class="btn ghost" id="f1" hidden></button></div>
+    </div>
+    <div class="card">
+      <h2>Sort these situations</h2>
+      <p class="muted">For each one ask: does anything move? does anything make progress?</p>
+      <div id="sortQ"></div>
+    </div>
+  </section>
+
+  <section id="d2" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2>Gridlock around a city block</h2>
+      <p class="muted">Four junctions around one block. Blue cars drive around the block, amber cars will turn off at the next junction. Grey cross streets need the junction boxes to be free.</p>
+      <div class="grid2">
+        <div><svg id="city" viewBox="0 0 360 360" style="width:100%;max-width:420px;height:auto" role="img" aria-label="city block"></svg></div>
+        <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+          <div class="row"><span class="muted">Traffic</span><div class="chips" role="group" aria-label="Traffic"><button data-rate="0.03" aria-pressed="false">Light</button><button data-rate="0.5" aria-pressed="true">Rush hour</button></div></div>
+          <label class="row" style="gap:6px"><input type="checkbox" id="rule"> Rule: <b>do not enter a junction unless you can leave it</b></label>
+          <div class="stats" id="s2"></div>
+          <div class="actbox" id="a2"></div>
+          <div class="row"><button class="btn" id="p2">▶ Play</button><button class="btn ghost" id="st2">Step</button><button class="btn ghost" id="r2">Restart</button><button class="btn ghost" id="tow" disabled>Tow one car away</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Check the 4 conditions</h2>
+      <div class="scroll"><table class="t" id="cond"></table></div>
+    </div>
+  </section>
+
+  <section id="d3" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2>A starvation detector</h2>
+      <p class="muted">A priority scheduler: the smallest number runs first. Urgent jobs (priority 1) keep arriving. The detector checks every process waiting in the ready queue.</p>
+      <div class="row"><label for="thr" class="muted">Alarm if waiting more than <b id="thrV" class="mono">8</b> ticks</label><input type="range" id="thr" min="3" max="20" value="8" style="flex:1;min-width:140px"><label class="row" style="gap:6px"><input type="checkbox" id="age"> Fix it with aging</label></div>
+      <div class="scroll"><table class="t" id="pt"></table></div>
+      <div class="stats" id="s3"></div>
+      <div class="actbox" id="a3"></div>
+      <div class="row"><button class="btn" id="p3">▶ Play</button><button class="btn ghost" id="st3">Step</button><button class="btn ghost" id="r3">Restart</button></div>
+    </div>
+  </section>
+
+  <section id="d4" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2>The group project lab</h2>
+      <div class="chips" role="group" aria-label="Scenario" id="sc4"></div>
+      <div class="life" id="l4"></div>
+      <div class="grid2">
+        <div><svg id="rag" viewBox="0 0 380 300" style="width:100%;max-width:440px;height:auto" role="img" aria-label="resource allocation graph"></svg><p class="muted" style="font-size:.85rem">● student · ■ resource (number = spare copies) · solid arrow = holds · dashed = waits for</p></div>
+        <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+          <div class="row" id="add4"></div>
+          <div class="actbox" id="a4"></div>
+          <div class="row"><button class="btn" id="run4">Can everybody finish?</button><button class="btn ghost" id="r4">Reset</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d5" class="wrap" style="gap:16px" hidden>
+    <div class="card">
+      <h2>The busy disk arm</h2>
+      <div class="row"><label>Track <input type="number" id="ta" class="mono-in" value="30" style="width:5em"></label><label>↔ Track <input type="number" id="tb" class="mono-in" value="180" style="width:5em"></label><label>one way = <input type="number" id="ms" class="mono-in" value="5" min="1" style="width:4em"> ms</label><label>for <input type="number" id="sec" class="mono-in" value="2" min="1" style="width:4em"> s</label></div>
+      <canvas id="cv5" width="640" height="120" style="width:100%;height:auto;border:2px solid var(--line);border-radius:12px;background:var(--soft)"></canvas>
+      <label class="row" style="gap:6px"><input type="checkbox" id="fix5"> Rule: finish the current request before switching</label>
+      <div class="stats" id="s5"></div>
+      <div class="actbox" id="a5"></div>
+      <div class="row"><button class="btn" id="p5">▶ Play (slow motion)</button><button class="btn ghost" id="r5">Restart</button></div>
+    </div>
+  </section>
+
+  <div class="card"><div class="row" style="justify-content:space-between"><h2>✍ On your exam paper</h2></div><p class="muted">A frame for your answer. Fill it with your own words and the tutorial's numbers.</p><ol class="frame" id="frame"></ol></div>
+  <footer>Companion for Tutorial 6. The demos help you think; the answers are yours to write.</footer>
+</div>
+<script>
+// gridlock around a block: 4 junction boxes (shared with cross traffic) and 4 one-way lanes of K cells
+function makeCity(K){const N=4*(K+1);return {K,N,cells:Array(N).fill(null),t:0,stuck:0,moved:0,left:0,cross:0,crossTick:0,id:0,wait:{}}}
+const isBox=(C,i)=>i%(C.K+1)===0;
+function tick(C,{rate,rule}){const {N,cells}=C;let moved=0;const next=i=>(i+1)%N;const done=new Set();
+  const start=Math.floor(Math.random()*N);
+  for(let k=0;k<N;k++){const i=(start-k+N)%N;const car=cells[i];if(!car||done.has(car.id))continue;
+    if(isBox(C,i)&&car.turn){cells[i]=null;C.left++;moved++;continue}
+    const j=next(i);
+    if(isBox(C,j)){// head of a lane, wants to use the junction
+      if(cells[j]){car.w=(car.w||0)+1;continue}
+      const exitFree=!cells[next(j)];
+      const turn=car.turnNext||(rule&&car.w>=2);// with a free junction a stuck driver can turn away
+      if(!turn&&!exitFree&&rule){car.w=(car.w||0)+1;continue}// don't block the box
+      car.turn=turn;cells[j]=car;cells[i]=null;done.add(car.id);moved++;car.w=0;continue}
+    if(cells[j]){car.w=(car.w||0)+1;continue}
+    cells[j]=car;cells[i]=null;done.add(car.id);moved++;car.w=0}
+  // cross traffic: one car per junction per tick can cross if the box is empty
+  let cr=0;for(let b=0;b<4;b++){if(!cells[b*(C.K+1)])cr++}C.cross+=cr;C.crossTick=cr;
+  // cars turning into the loop from the cross streets
+  for(let b=0;b<4;b++){const i=b*(C.K+1)+1;if(!cells[i]&&(rule?!cells[b*(C.K+1)]:true)&&Math.random()<rate){cells[i]={id:++C.id,turnNext:Math.random()<0.15,turn:false,w:0};moved++}}
+  C.t++;C.moved=moved;const cars=cells.filter(Boolean).length;C.stuck=(moved===0&&cars>0)?C.stuck+1:0;return C}
+
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const store={get(k,d){try{const v=localStorage.getItem('dl-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('dl-'+k,JSON.stringify(v))}catch(e){}}};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let timers={};const stopAll=()=>{Object.values(timers).forEach(clearInterval);timers={};$$('[id^=p]').forEach(b=>{if(b.textContent.startsWith('❚❚'))b.textContent=b.dataset.lab||'▶ Play'})};
+function play(key,btn,fn,ms){if(timers[key]){clearInterval(timers[key]);delete timers[key];btn.textContent=btn.dataset.lab;return}btn.dataset.lab=btn.dataset.lab||btn.textContent;btn.textContent='❚❚ Pause';timers[key]=setInterval(()=>{if(fn()===false){clearInterval(timers[key]);delete timers[key];btn.textContent=btn.dataset.lab}},ms)}
+const QS=[
+ {tab:'Q1',sub:'Deadlock, livelock, starvation',title:'Three ways to get nowhere',show:'d1',
+  life:'You and a friend meet in a narrow corridor. If you both stop and wait for the other to move, nothing happens. If you both keep stepping to the same side, you move a lot but still cannot pass. And if teachers keep walking past you while you wait politely, they progress and you do not.',
+  how:['Ask two questions: <strong>does anything move?</strong> <strong>does anything make progress?</strong>','Deadlock: nothing moves. Livelock: things move, nothing progresses. Starvation: the system progresses, one process does not.','Find your own real-life example for each one.'],
+  think:'Watch the three scenes below, then write one real-life example of your own for each term and compare them with the two questions.',
+  frame:['Define each term in one sentence.','Give one real-life example for each, your own.','Compare with a small table: moves? progress? who is affected?','End with one sentence on the key difference.']},
+ {tab:'Q2',sub:'The tunnel',title:'Traffic, junctions and circular wait',show:'d2',
+  life:'At rush hour, drivers enter a junction even when the road after it is full. They stop in the middle, block the cross street, and the cars on the cross street block the next junction… until a whole block is frozen. This is called <strong>gridlock</strong>.',
+  how:['List the shared resources: which pieces of road can hold only one car?','Find who holds one piece while waiting for another (hold and wait).','Follow the waits until you come back to the start (circular wait).','Detection: what do you observe? Prevention: which condition can a rule break?'],
+  think:'In the tunnel figure, which pieces of road are the resources? What do the cars inside the tunnel wait for, and what blocks that? Then: how would you notice it, and which rule would stop it?',
+  frame:['a) Resources in the figure, then the 4 conditions with the tunnel.','a) The circumstance: when exactly does it happen?','b) What can be observed / what graph would show the cycle.','c) One rule, and which condition it breaks.']},
+ {tab:'Q3',sub:'Detect starvation',title:'How can the OS notice a starving process?',show:'d3',
+  life:'A clinic writes the arrival time of every patient. Every few minutes, a nurse checks: who has been waiting much longer than normal? Those patients are moved forward.',
+  how:['Decide what to measure for each waiting process (and where to store it).','Decide who checks, and how often.','Decide the test: when is a process “starving”?','Decide what happens after the alarm.'],
+  think:'Play with the detector below. What does the OS need to store in each PCB so that it can raise the alarm? What fixes the problem after detection?',
+  frame:['Data to record per process (where in the OS?).','Who checks, and how often.','The test that marks a process as starving.','What to do after detection.']},
+ {tab:'Q4',sub:'Holding and waiting',title:'Who holds what? Who waits for what?',show:'d4',
+  life:'A group project the night before the deadline: each teammate holds one thing the others need, and nobody wants to give it up.',
+  how:['Draw the resource allocation graph: holds = arrow from resource to person, waits = arrow from person to resource.','Is anything moving? A cycle with one copy of each resource = deadlock.','Add one spare copy at a time: can someone finish and release what they hold?'],
+  think:'Draw the graph for the ice-cream shop. Then ask: how many extra resources are needed before the first customer can finish and release?',
+  frame:['Draw the graph and point to the cycle.','Moving or not → deadlock or livelock, with the 4 conditions.','Add resources one at a time and show who finishes first.','State the minimum and justify it.']},
+ {tab:'Q5',sub:'The disk arm',title:'Very busy, zero work',show:'d5',
+  life:'Two roommates fight over the TV remote: each one changes the channel before the other has watched anything. The TV is very busy, nobody watches a programme.',
+  how:['Decide: moving without progress, or not moving at all?','Time of one way, then of one round trip (there and back).','Divide the total time by the round-trip time. Each round trip = 2 one-way moves.','Count the useful work done.'],
+  think:'Change the numbers below and watch the counters. Then do the tutorial numbers on paper: be careful to say whether you count one-way moves or round trips.',
+  frame:['Deadlock or livelock, with the reason.','Round trip = … + … = … ms.','1000 ms ÷ … = … round trips = … one-way moves.','Useful I/O = …, because …']}];
+$('#tabs').innerHTML=QS.map((q,i)=>`<button role="tab" data-tab="${i}" aria-selected="false"><b>${q.tab}</b><span>${q.sub}</span></button>`).join('');
+$$('[data-tab]').forEach(b=>b.onclick=()=>tab(+b.dataset.tab));
+function tab(i){i=Math.min(Math.max(0,i|0),QS.length-1);const q=QS[i];stopAll();$$('[data-tab]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.tab===i));['d1','d2','d3','d4','d5'].forEach(d=>$('#'+d).hidden=d!==q.show);
+  $('#qTitle').textContent=`${q.tab} · ${q.title}`;$('#qLife').innerHTML=q.life;$('#qHow').innerHTML=q.how.map(x=>`<li>${x}</li>`).join('');$('#qThink').textContent=q.think;$('#frame').innerHTML=q.frame.map(x=>`<li>${x}</li>`).join('');store.set('q',i)}
+
+// ---------- Q1 scenes ----------
+const SC=[{k:'dead',n:'Warehouse aisle',fix:'One forklift backs out'},{k:'live',n:'Robot vacuums',fix:'Add a random wait'},{k:'starve',n:'Shared photocopier',fix:'Turn on aging'}];
+let S1=null,sc=0;
+$('#sc').innerHTML=SC.map((s,i)=>`<button data-s="${i}" aria-pressed="${i===0}">${s.n}</button>`).join('');
+$$('[data-s]').forEach(b=>b.onclick=()=>{sc=+b.dataset.s;$$('[data-s]').forEach(x=>x.setAttribute('aria-pressed',x===b));reset1()});
+function reset1(){stopAll();const k=SC[sc].k;S1={k,t:0,moves:0,progress:0,fixed:false,a:60,b:580,lane:0,q:['L','L','S','L'],printed:0,swait:0,sprio:5,done:false};$('#f1').hidden=false;$('#f1').textContent=SC[sc].fix;draw1()}
+function step1(){const s=S1;s.t++;
+  if(s.k==='dead'){if(s.fixed){if(s.b<700){s.b+=14;s.moves++}else if(s.a<600){s.a+=14;s.moves++;if(s.a>=600&&!s.done){s.progress++;s.done=true}}}else if(s.b-s.a>80){s.a+=14;s.b-=14;s.moves+=2}}
+  else if(s.k==='live'){if(!s.done){s.lane=s.fixed&&Math.random()<.5?s.lane:1-s.lane;s.lane2=s.fixed?(Math.random()<.5?0:1):s.lane;s.moves+=2;if(s.fixed&&s.lane!==s.lane2){s.done=true;s.progress=2}}}
+  else{if(s.t%2===0)s.q.splice(Math.max(0,s.q.indexOf('S')),0,'L');const i=s.q.indexOf('S');
+    if(s.fixed&&s.swait>=6&&i>0){s.q.splice(i,1);s.q.unshift('S')}
+    const job=s.q.shift();s.printed++;s.moves++;if(job==='S'){s.done=true;s.progress=1}else{s.swait++}if(!s.q.includes('S')&&!s.done){}}
+  draw1();return s.t<80&&!(s.k!=='starve'&&s.done&&s.t>40)}
+function draw1(){const c=$('#cv1'),g=c.getContext('2d'),s=S1;g.clearRect(0,0,c.width,c.height);const ink=css('--ink'),acc=css('--accent'),on=css('--on'),line=css('--line'),bad=css('--bad');g.font='600 15px sans-serif';
+  if(s.k==='dead'){g.fillStyle=line;g.fillRect(40,55,560,40);g.fillStyle=ink;g.fillText('narrow aisle: one forklift wide',230,40);g.fillStyle=acc;g.fillRect(s.a-30,60,40,30);g.fillStyle=on;g.fillRect(s.b-10,60,40,30)}
+  if(s.k==='live'){g.fillStyle=line;g.fillRect(40,30,560,90);const y=l=>l?95:55;g.fillStyle=acc;g.beginPath();g.arc(s.done?520:300,y(s.lane),16,0,7);g.fill();g.fillStyle=on;g.beginPath();g.arc(s.done?120:340,y(s.lane2??s.lane),16,0,7);g.fill();g.fillStyle=ink;g.fillText(s.done?'they passed!':'both dodge to the same side…',230,20)}
+  if(s.k==='starve'){g.fillStyle=ink;g.fillText('photocopier ←',20,80);s.q.slice(0,12).forEach((j,i)=>{g.fillStyle=j==='S'?bad:acc;g.fillRect(140+i*38,62,30,30);g.fillStyle='#fff';g.fillText(j,149+i*38,83)});if(s.done){g.fillStyle=css('--ok');g.fillText('the student job S was printed',300,130)}}
+  const moving=s.k==='dead'?(s.b-s.a>80||s.fixed&&!s.done):true;
+  $('#s1').innerHTML=`<div class="stat"><b>${moving?'yes':'no'}</b><span>does anything move?</span></div><div class="stat"><b>${s.moves}</b><span>moves so far</span></div><div class="stat${s.progress?'':' warn'}"><b>${s.k==='starve'?s.printed-s.progress+' / '+s.progress:s.progress}</b><span>${s.k==='starve'?'lecturer jobs printed / student job':'useful progress'}</span></div>${s.k==='starve'?`<div class="stat${s.done?'':' warn'}"><b>${s.swait}</b><span>times S was overtaken</span></div>`:''}`;
+  const T={dead:['The two forklifts meet in the middle. Each one holds its half of the aisle and waits for the other.','Nothing moves any more, and nothing progresses. Nobody will back out by itself.',s.fixed?'Fix: one forklift is forced to back out (its half is taken away), so the other can pass.':'Press the fix button to break it.'],
+   live:['Each robot sees the other and dodges. Both always dodge to the same side at the same moment.','They move all the time, but they never pass: no progress.',s.fixed?'Fix: each robot waits a random time before dodging. Soon they choose different sides and pass.':'Press the fix button to break it.'],
+   starve:['Lecturer jobs (L) are always placed before the student job (S).','The photocopier works all the time and many jobs are printed: the system progresses, but S never does.',s.fixed?'Fix (aging): after waiting too long, S moves to the front.':'Press the fix button to break it.']};
+  $('#a1').innerHTML=`<b>What happens</b><ol>${T[s.k].map(x=>`<li>${x}</li>`).join('')}</ol>`}
+$('#p1').onclick=()=>play('p1',$('#p1'),step1,350);$('#r1').onclick=reset1;$('#f1').onclick=()=>{S1.fixed=true;draw1()};
+const SQ=[['Two teammates each hold half of a password and refuse to share until the other shares first.','dead'],['Two phones call each other at the same moment, both hear “busy”, hang up, wait exactly 5 s and call again… forever.','live'],['At a clinic, urgent patients always go first; on a busy day a student with a cold is never called.','starve'],['Process A holds printer 1 and waits for printer 2; process B holds printer 2 and waits for printer 1.','dead'],['Two Wi-Fi devices collide, both wait exactly 1 ms, resend, collide again, again…','live'],['A small download never gets bandwidth because video streams always take it first.','starve'],['Four cars at a 4-way stop: each waits for the car on its right.','dead'],['Two polite friends at a door: “after you” – “no, after you” – forever.','live']];
+$('#sortQ').innerHTML=SQ.map(([t],i)=>`<div class="row" style="justify-content:space-between;border-bottom:1px dashed var(--line);padding:6px 0"><span style="flex:1;min-width:220px">${i+1}. ${esc(t)}</span><span class="chips">${['dead','live','starve'].map(k=>`<button data-sq="${i}" data-k="${k}" aria-pressed="false">${{dead:'Deadlock',live:'Livelock',starve:'Starvation'}[k]}</button>`).join('')}</span><span class="fb" id="sq${i}" style="width:1.5em"></span></div>`).join('');
+$$('[data-sq]').forEach(b=>b.onclick=()=>{const i=+b.dataset.sq,ok=SQ[i][1]===b.dataset.k;$$(`[data-sq="${i}"]`).forEach(x=>x.setAttribute('aria-pressed',x===b));$('#sq'+i).textContent=ok?'✓':'✗';$('#sq'+i).className='fb '+(ok?'ok':'no')});
+
+// ---------- Q2 city ----------
+let C2=null,RATE=0.5;const K=5;
+function reset2(){stopAll();C2=makeCity(K);draw2()}
+function cellXY(i){const side=Math.floor(i/(K+1)),j=i%(K+1);const P=[[60,60],[300,60],[300,300],[60,300]];const a=P[side],b=P[(side+1)%4];const t=j/(K+1);return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}
+function draw2(){const C=C2,svg=$('#city');const ink=css('--ink'),line=css('--line'),acc=css('--accent'),on=css('--on'),bad=css('--bad'),soft=css('--soft');const dead=C.stuck>=3;
+  let h=`<rect x="0" y="0" width="360" height="360" fill="${soft}"/>`;
+  [60,300].forEach(v=>{h+=`<rect x="${v-16}" y="0" width="32" height="360" fill="${line}" opacity=".55"/><rect x="0" y="${v-16}" width="360" height="32" fill="${line}" opacity=".55"/>`});
+  h+=`<rect x="84" y="84" width="192" height="192" fill="${css('--panel')}" rx="8"/><text x="180" y="185" text-anchor="middle" fill="${css('--muted')}" font-size="14">city block</text>`;
+  for(let i=0;i<C.N;i++){const [x,y]=cellXY(i);const box=isBox(C,i);const car=C.cells[i];
+    h+=`<rect x="${x-(box?15:11)}" y="${y-(box?15:11)}" width="${box?30:22}" height="${box?30:22}" rx="5" fill="none" stroke="${box?(dead&&car?bad:ink):line}" stroke-width="${box?3:1.5}" ${box?'':'stroke-dasharray="3 3"'}/>`;
+    if(car)h+=`<rect x="${x-9}" y="${y-9}" width="18" height="18" rx="4" fill="${car.turn||car.turnNext?on:acc}"/>`}
+  [[60,60,'J1'],[300,60,'J2'],[300,300,'J3'],[60,300,'J4']].forEach(([x,y,n])=>h+=`<text x="${x}" y="${y<180?y-22:y+32}" text-anchor="middle" font-size="12" font-weight="700" fill="${ink}">${n}</text>`);
+  svg.innerHTML=h;const cars=C.cells.filter(Boolean).length;const boxBlocked=[0,1,2,3].filter(b=>C.cells[b*(K+1)]).length;
+  $('#s2').innerHTML=`<div class="stat"><b>${C.t}</b><span>tick</span></div><div class="stat"><b>${cars}</b><span>cars around the block</span></div><div class="stat${C.crossTick===0&&C.t?' warn':''}"><b>${C.crossTick}/4</b><span>cross streets flowing</span></div><div class="stat${dead?' warn':''}"><b>${dead?'DEADLOCK':C.moved?'moving':'…'}</b><span>status</span></div>`;
+  $('#a2').innerHTML=dead?`<b>Detected!</b><ol><li>No car has moved for ${C.stuck} ticks while cars are waiting: the detector raises the alarm.</li><li>Wait-for cycle: the car in J1 waits for the lane to J2, which is full up to J2; the car in J2 waits for the lane to J3… and the car in J4 waits for the lane to J1. Back to the start.</li><li>All 4 junction boxes are blocked: the cross streets cannot move either.</li><li>Recovery: tow one car away (that is “preemption” or “killing a process”).</li></ol>`
+   :`<b>What happens</b><ol><li>${$('#rule').checked?'With the rule, a straight car waits BEFORE the junction until it can leave it. The boxes stay free for the cross streets, and a waiting driver can still turn away.':'Without the rule, drivers enter a junction even when the next lane is full, and stop inside it.'}</li><li>${boxBlocked} junction box${boxBlocked===1?' is':'es are'} occupied right now.</li></ol>`;
+  $('#tow').disabled=!dead;
+  const R=$('#rule').checked;const rows=[['Mutual exclusion','one car per piece of road / junction box',true],['Hold and wait','a car keeps its junction box while waiting for space in the next lane',!R],['No preemption','nobody can lift a car away',true],['Circular wait','J1 → J2 → J3 → J4 → J1',!R]];
+  $('#cond').innerHTML='<tr><th>Condition</th><th>In this city</th><th>Present?</th></tr>'+rows.map(([n,d,p])=>`<tr><td class="l"><b>${n}</b></td><td class="l">${d}</td><td style="color:var(${p?(dead?'--bad':'--ink'):'--ok'});font-weight:700">${p?(dead?'yes ✓':'possible'):'broken by the rule'}</td></tr>`).join('')}
+function step2(){tick(C2,{rate:RATE,rule:$('#rule').checked});draw2();return C2.stuck<3}
+$('#p2').onclick=()=>play('p2',$('#p2'),step2,260);$('#st2').onclick=()=>{stopAll();step2()};$('#r2').onclick=reset2;$('#rule').onchange=()=>{reset2()};
+$$('[data-rate]').forEach(b=>b.onclick=()=>{RATE=+b.dataset.rate;$$('[data-rate]').forEach(x=>x.setAttribute('aria-pressed',x===b));reset2()});
+$('#tow').onclick=()=>{const b=[0,1,2,3].map(b=>b*(K+1)).find(i=>C2.cells[i]);if(b!==undefined){C2.cells[b]=null;C2.stuck=0;draw2()}};
+
+// ---------- Q3 starvation detector ----------
+let P3=null;
+function reset3(){stopAll();P3={t:0,id:0,procs:[{pid:'P1',prio:2,left:3},{pid:'P2',prio:3,left:4},{pid:'P3',prio:4,left:2},{pid:'P4',prio:5,left:3}].map(p=>({...p,base:p.prio,wait:0,by:0,done:false,flag:false,arr:0})),log:[],alarms:0,run:null};draw3()}
+function step3(){const S=P3;S.t++;const msg=[];const thr=+$('#thr').value;
+  if(S.t%2===1&&S.t<=36){const p={pid:'U'+(++S.id),prio:1,base:1,left:2,wait:0,by:0,done:false,flag:false,arr:S.t};S.procs.push(p);msg.push(`${p.pid} arrives with priority 1 (urgent).`)}
+  const ready=S.procs.filter(p=>!p.done);ready.sort((a,b)=>a.prio-b.prio||a.arr-b.arr);const run=ready[0];S.run=run?run.pid:null;
+  if(run){run.left--;run.wait=0;if(run.left===0){run.done=true;msg.push(`${run.pid} finishes.`)}
+    ready.slice(1).forEach(p=>{p.wait++;if(run.arr>p.arr)p.by++})}
+  if($('#age').checked)ready.slice(1).forEach(p=>{if(p.wait>0&&p.wait%4===0&&p.prio>1){p.prio--;msg.push(`Aging: ${p.pid} waited ${p.wait} ticks → priority ${p.prio+1} → ${p.prio}.`)}});
+  ready.forEach(p=>{const f=!p.done&&p.wait>thr;if(f&&!p.flag){S.alarms++;msg.push(`ALARM: ${p.pid} has waited ${p.wait} ticks (more than ${thr}) → starving.`)}p.flag=f});
+  S.log=msg;draw3();return S.t<60&&S.procs.some(p=>!p.done)}
+function draw3(){const S=P3;$('#thrV').textContent=$('#thr').value;
+  const shown=S.procs.filter(p=>!p.done||p.pid[0]==='P');
+  $('#pt').innerHTML='<tr><th>Process</th><th>Priority now</th><th>Time left</th><th>Waiting (ticks)</th><th>Overtaken</th><th>Status</th></tr>'+shown.map(p=>`<tr style="${p.flag?'background:var(--bad-s)':''}"><td><b>${p.pid}</b></td><td>${p.prio}${p.prio!==p.base?` <span class="muted">(was ${p.base})</span>`:''}</td><td>${p.left}</td><td>${p.done?'—':p.wait}</td><td>${p.by}</td><td style="font-weight:700;color:var(${p.done?'--ok':p.flag?'--bad':'--ink'})">${p.done?'finished':S.run===p.pid?'running':p.flag?'STARVING':'ready'}</td></tr>`).join('');
+  const P4=S.procs.find(p=>p.pid==='P4');
+  $('#s3').innerHTML=`<div class="stat"><b>${S.t}</b><span>tick</span></div><div class="stat"><b>${S.procs.filter(p=>p.done).length}</b><span>processes finished</span></div><div class="stat${S.alarms?' warn':''}"><b>${S.alarms}</b><span>starvation alarms</span></div><div class="stat"><b>${P4.done?'done':P4.wait}</b><span>P4 waiting</span></div>`;
+  $('#a3').innerHTML=`<b>What happens at tick ${S.t}</b><ol>${(S.log.length?S.log:['Press Play. Watch the “Waiting” column of P3 and P4.']).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`}
+$('#p3').onclick=()=>play('p3',$('#p3'),step3,450);$('#st3').onclick=()=>{stopAll();step3()};$('#r3').onclick=reset3;$('#thr').oninput=draw3;$('#age').onchange=reset3;
+
+// ---------- Q4 resource lab ----------
+const SC4=[{n:'Three teammates',life:'Aina holds the <b>laptop</b> and waits for the projector. Ben holds the <b>projector</b> and waits for the HDMI cable. Chen holds the <b>HDMI cable</b> and waits for the laptop. Each needs both things to finish, then gives everything back.',
+  P:{Aina:[190,40],Ben:[330,240],Chen:[50,240]},R:{Laptop:[110,130],Projector:[270,130],Cable:[190,260]},hold:{Aina:['Laptop'],Ben:['Projector'],Chen:['Cable']},want:{Aina:['Projector'],Ben:['Cable'],Chen:['Laptop']},spare:{Laptop:0,Projector:0,Cable:0}},
+ {n:'Two printers, one scanner',life:'There are <b>2 printers</b> and <b>1 scanner</b>. Aina holds a printer and waits for the scanner. Ben holds the scanner and waits for a printer. The second printer is free.',
+  P:{Aina:[60,150],Ben:[320,150]},R:{Printer:[190,60],Scanner:[190,240]},hold:{Aina:['Printer'],Ben:['Scanner']},want:{Aina:['Scanner'],Ben:['Printer']},spare:{Printer:1,Scanner:0}}];
+let S4=null,sc4=0;
+$('#sc4').innerHTML=SC4.map((s,i)=>`<button data-s4="${i}" aria-pressed="${i===0}">${s.n}</button>`).join('');
+$$('[data-s4]').forEach(b=>b.onclick=()=>{sc4=+b.dataset.s4;$$('[data-s4]').forEach(x=>x.setAttribute('aria-pressed',x===b));reset4()});
+function reset4(){const s=SC4[sc4];S4={spare:{...s.spare},added:0,done:[],steps:null};$('#l4').innerHTML='<b>The situation</b>'+s.life;$('#add4').innerHTML=Object.keys(s.R).map(r=>`<button class="btn ghost sm" data-add="${r}">+1 ${r}</button>`).join('');$$('[data-add]').forEach(b=>b.onclick=()=>{S4.spare[b.dataset.add]++;S4.added++;S4.steps=null;S4.done=[];draw4()});draw4()}
+function arrow(a,b,dash,col){const d=Math.hypot(b[0]-a[0],b[1]-a[1]),ux=(b[0]-a[0])/d,uy=(b[1]-a[1])/d;const x1=a[0]+ux*30,y1=a[1]+uy*30,x2=b[0]-ux*32,y2=b[1]-uy*32;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="3" ${dash?'stroke-dasharray="7 5"':''} marker-end="url(#m4)"/>`}
+function draw4(){const s=SC4[sc4],ink=css('--ink'),acc=css('--accent'),on=css('--on'),ok=css('--ok');let h=`<defs><marker id="m4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="${ink}"/></marker></defs>`;
+  for(const p in s.P){if(S4.done.includes(p))continue;s.hold[p].forEach(r=>h+=arrow(s.R[r],s.P[p],false,ink));s.want[p].forEach(r=>h+=arrow(s.P[p],s.R[r],true,ink))}
+  for(const p in s.P){const [x,y]=s.P[p];const d=S4.done.includes(p);h+=`<circle cx="${x}" cy="${y}" r="27" fill="${d?ok:acc}"/><text x="${x}" y="${y+5}" text-anchor="middle" fill="#fff" font-weight="700" font-size="13">${d?'✓ '+p:p}</text>`}
+  for(const r in s.R){const [x,y]=s.R[r];h+=`<rect x="${x-38}" y="${y-22}" width="76" height="44" rx="6" fill="${on}"/><text x="${x}" y="${y+1}" text-anchor="middle" fill="#2A1B00" font-weight="700" font-size="12">${r}</text><text x="${x}" y="${y+16}" text-anchor="middle" fill="#2A1B00" font-size="11">spare: ${S4.spare[r]}</text>`}
+  $('#rag').innerHTML=h;$('#a4').innerHTML=S4.steps?`<b>Can everybody finish? (${S4.added} extra added)</b><ol>${S4.steps.map(x=>`<li>${x}</li>`).join('')}</ol>`:`<b>Your move</b><ol><li>Follow the arrows: is there a cycle?</li><li>Press “Can everybody finish?”. Then add one spare resource and try again. What is the smallest number you need?</li></ol>`}
+$('#run4').onclick=()=>{const s=SC4[sc4];const avail={...S4.spare};const left=Object.keys(s.P);const steps=[`Spare now: ${Object.entries(avail).map(([k,v])=>`${k} ${v}`).join(', ')}.`];S4.done=[];
+  let prog=true;while(prog&&left.length){prog=false;for(const p of [...left]){if(s.want[p].every(r=>avail[r]>0)){steps.push(`${p} can get ${s.want[p].join(', ')} → finishes → gives back ${[...s.hold[p],...s.want[p]].join(' and ')}.`);[...s.hold[p]].forEach(r=>avail[r]++);left.splice(left.indexOf(p),1);S4.done.push(p);prog=true}}}
+  steps.push(left.length?`<b style="color:var(--bad)">Nobody else can continue: ${left.join(', ')} ${left.length>1?'are':'is'} deadlocked.</b>`:`<b style="color:var(--ok)">Everybody finishes.</b> ${S4.added===0&&sc4===1?'A cycle with several copies of a resource is not always a deadlock!':''}`);
+  S4.steps=steps;draw4()};
+$('#r4').onclick=reset4;
+
+// ---------- Q5 disk arm ----------
+let D5=null;
+function reset5(){stopAll();const a=+$('#ta').value||0,b=+$('#tb').value||0,ms=Math.max(1,+$('#ms').value||1),sec=Math.max(1,+$('#sec').value||1);D5={a,b,ms,sec,t:0,pos:a,dir:1,one:0,io:0};draw5()}
+function step5(){const d=D5;d.t+=0.5;const total=d.sec*1000;if(d.t>=total)return false;const phase=(d.t%d.ms)/d.ms;const n=Math.floor(d.t/d.ms);d.one=n;d.dir=n%2===0?1:-1;d.pos=d.dir>0?d.a+(d.b-d.a)*phase:d.b-(d.b-d.a)*phase;if($('#fix5').checked)d.io=n;draw5();return d.t<Math.min(total,40*d.ms)}
+function draw5(){const d=D5,c=$('#cv5'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);const lo=Math.min(d.a,d.b),hi=Math.max(d.a,d.b);const X=v=>60+(v-lo)/(hi-lo||1)*520;
+  g.strokeStyle=css('--line');g.lineWidth=2;[d.a,d.b].forEach(v=>{g.beginPath();g.moveTo(X(v),20);g.lineTo(X(v),100);g.stroke()});g.fillStyle=css('--ink');g.font='600 14px sans-serif';g.fillText('track '+d.a,X(d.a)-24,115);g.fillText('track '+d.b,X(d.b)-28,115);
+  g.fillStyle=css('--on');g.fillRect(X(d.pos)-6,30,12,60);g.fillStyle=css('--muted');g.fillText(`simulated time ${d.t.toFixed(1)} ms`,250,18);
+  const total=d.sec*1000,rt=2*d.ms,trips=Math.floor(total/rt),one=Math.floor(total/d.ms),fix=$('#fix5').checked;
+  $('#s5').innerHTML=`<div class="stat"><b>${d.one}</b><span>one-way moves so far</span></div><div class="stat"><b>${Math.floor(d.one/2)}</b><span>round trips so far</span></div><div class="stat${fix?'':' warn'}"><b>${fix?d.io:0}</b><span>useful I/O done</span></div>`;
+  $('#a5').innerHTML=`<b>The calculation for the full ${d.sec} s</b><ol><li>One way = ${d.ms} ms. Round trip = ${d.ms} + ${d.ms} = <b>${rt} ms</b>.</li><li>Round trips = ${total} ÷ ${rt} = <b>${trips}</b>. One-way moves = ${trips} × 2 = <b>${one}</b>.</li><li>${fix?`With the rule, each arrival finishes its request: up to <b>${one}</b> I/O operations.`:'Useful work: every command is changed before the arm arrives, so <b>0</b> I/O operations complete. The arm is busy all the time without progress.'}</li></ol>`}
+$('#p5').onclick=()=>play('p5',$('#p5'),step5,40);$('#r5').onclick=reset5;['#ta','#tb','#ms','#sec'].forEach(s=>$(s).onchange=reset5);$('#fix5').onchange=reset5;
+
+reset1();reset2();reset3();reset4();reset5();tab(store.get('q',0));
+</script>
+</body></html>
