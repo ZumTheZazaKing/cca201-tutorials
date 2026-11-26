@@ -1,0 +1,263 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deadlock Handling in Your Computer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EC; --panel:#FFFFFF; --ink:#1D2B2A; --muted:#566664; --line:#C9D3CC; --soft:#E2E9E3;
+  --blue:#2F6FDB; --green:#2E8B57; --red:#C0392B; --amber:#B87410; --purple:#7B5EA7; --term:#14161C; --termtx:#D7F5DE;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+    --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131A19; --panel:#1C2524; --ink:#E5EDE9; --muted:#9DAEA9; --line:#334240; --soft:#243130;
+  --blue:#6C9BF0; --green:#4FB57D; --red:#E86A5C; --amber:#E2A23C; --purple:#A98BD6; --term:#0B0C10;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;line-height:1.12;margin:0}
+.n,code,kbd{font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+header{margin-bottom:16px}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:800;letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;padding:10px 0;margin-bottom:14px;border-bottom:2px solid var(--line)}
+nav button{font:inherit;text-align:left;display:flex;flex-direction:column;background:var(--panel);border:2px solid var(--line);border-radius:10px;color:var(--ink);padding:7px 10px;cursor:pointer;line-height:1.2}
+nav button:hover{border-color:var(--ink)}
+nav button b{font-size:.98rem} nav button span{font-size:.8rem;color:var(--muted)}
+nav button[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+nav button[aria-selected="true"] span{color:var(--panel)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin:0 0 14px}
+.st[hidden]{display:none!important}
+.st{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:22px}
+@media (max-width:860px){.st{grid-template-columns:1fr}}
+.left h2{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+.where{color:var(--muted);margin:0 0 12px}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--soft);margin:0 6px 10px 0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.box h3{font-size:1rem;margin-bottom:6px}
+.os{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.os button{font:inherit;font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.os button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.box ol{margin:0;padding-left:20px} .box li{margin:4px 0}
+kbd{font-size:.85rem;background:var(--soft);border:1px solid var(--line);border-bottom-width:3px;border-radius:5px;padding:0 6px}
+code{font-size:.9rem;background:var(--soft);padding:1px 5px;border-radius:4px}
+.term{background:var(--term);color:var(--termtx);border-radius:10px;padding:10px 12px;font:500 .9rem "JetBrains Mono",monospace;white-space:pre-wrap;overflow-x:auto;position:relative;margin-top:8px}
+.term .c{color:#8C93A6}
+.copy{position:absolute;top:6px;right:6px;font:700 .75rem "Atkinson Hyperlegible",sans-serif;padding:2px 8px;border-radius:6px;border:1px solid #444;background:#2A2D36;color:#fff;cursor:pointer}
+.think{background:var(--panel);border-left:4px solid var(--ink);padding:10px 14px;border-radius:0 8px 8px 0}
+.try{background:var(--panel);border:2px solid var(--ink);border-radius:14px;padding:16px;min-width:0}
+.try h3{font-size:1.05rem;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+input[type=text],input[type=number],select{font:inherit;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.btn{font:inherit;font-weight:700;font-size:.92rem;padding:7px 12px;border-radius:8px;border:2px solid var(--ink);background:var(--ink);color:var(--panel);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:wait}
+table.t{border-collapse:collapse;font-size:.95rem;width:100%}
+table.t td,table.t th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{font-size:.78rem;color:var(--muted)}
+.big{font:700 1.35rem "JetBrains Mono",monospace;word-break:break-all}
+.bits{font:700 1.05rem "JetBrains Mono",monospace;word-break:break-all}
+.bits .pg{color:var(--blue)} .bits .off{color:var(--amber)}
+.bars{display:grid;gap:6px;margin-top:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 90px;gap:8px;align-items:center;font-size:.9rem}
+.trk{height:18px;background:var(--soft);border-radius:9px;overflow:hidden}
+.trk i{display:block;height:100%;border-radius:9px;transition:width .6s}
+.note{font-size:.88rem;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:160px;border-bottom:2px solid var(--ink);border-left:2px solid var(--ink);padding:0 4px;margin:8px 0 4px}
+.chart div{flex:1;border-radius:4px 4px 0 0;min-height:2px;position:relative}
+.chart div span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:.72rem;color:var(--muted)}
+footer{margin-top:40px;color:var(--muted);font-size:.9rem}
+.log{background:var(--soft);border-radius:8px;padding:8px 10px;font:500 .85rem/1.5 var(--mono,monospace);white-space:pre-wrap;min-height:6em;margin:8px 0}
+.ta{width:100%;font-family:'JetBrains Mono',monospace;padding:8px;border-radius:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.bars .br{display:grid;grid-template-columns:70px 1fr 56px;gap:8px;align-items:center;margin:4px 0}.bars .br i{display:block;height:16px;border-radius:6px;background:var(--soft);overflow:hidden}.bars .br em{display:block;height:100%;background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;font-weight:700}.chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-s)}
+table.t{border-collapse:collapse}table.t td,table.t th{border:1px solid var(--line);padding:4px 6px;font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Deadlock Handling in Your Computer</h1>
+  <p>Operating Systems, Tutorial 7 in practice. Print queues, browser locks, memory promises, closing a frozen app and a task that keeps being overtaken: the 5 ideas of the tutorial, on your own computer. In each station, look on your computer, then use the tool on the right.</p>
+</header>
+<nav role="tablist" aria-label="Stations" id="nav"></nav>
+<div class="pager" id="pager"></div>
+
+<section class="st" data-t="1 · Print queue" data-s="Spooling breaks mutual exclusion">
+  <div class="left">
+    <h2>Two programs print at the same time</h2>
+    <p class="where">A printer can serve only one job at a time. But you never wait in front of it: your computer writes the job into a <b>print queue</b> on disk (the spooler) and gives you control back. That is spooling.</p>
+    <span class="tag">Q1a · mutual exclusion</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="pq"><button class="on" data-v="w">Windows</button><button data-v="m">Mac</button></div>
+      <div data-for="pq" data-v="w"><ol><li>Settings → Bluetooth &amp; devices → Printers &amp; scanners → <b>Microsoft Print to PDF</b> → <b>Open print queue</b>.</li><li>In the queue window: Printer → <b>Pause printing</b>.</li><li>Print one page from Notepad and one from your browser. Both jobs appear in the queue at once, and both programs are free again.</li><li>Optional: press <kbd>Win</kbd>+<kbd>R</kbd>, <code>services.msc</code>, find <b>Print Spooler</b>: the OS service that owns the real printer.</li><li>Resume printing, or cancel the jobs.</li></ol></div>
+      <div data-for="pq" data-v="m" hidden><ol><li>System Settings → Printers &amp; Scanners → choose a printer → <b>Printer Queue…</b> → <b>Pause</b>.</li><li>Print from two apps: both jobs wait in the queue, both apps are free.</li><li>Resume or delete the jobs.</li></ol></div>
+    </div>
+    <p class="think"><strong>Think:</strong> the printer is still used by one job at a time. So what exactly became shared? And what happens if the queue's disk space is full?</p>
+  </div>
+  <div class="try"><h3>Spool space</h3>
+    <p class="note" style="margin-top:0">Each job writes its pages into the spool while it is being created. The printer starts a job only when the job is completely written.</p>
+    <div class="row"><label for="spCap">Spool space (pages)</label><input id="spCap" type="number" class="mono-in" value="20" min="1" style="width:5em"></div>
+    <div class="row"><label for="spJobs">Job sizes (pages)</label><input id="spJobs" class="mono-in" value="8, 9, 7" style="width:10em"></div>
+    <div class="row"><button class="btn" id="spGo">Write them at the same time</button></div>
+    <div id="spOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="2 · Lock lab" data-s="Real locks in your browser">
+  <div class="left">
+    <h2>Your browser has a lock manager</h2>
+    <p class="where">Web pages can ask the browser for named locks (<code>navigator.locks</code>). Like an OS, it gives a lock to one task at a time. The tool on the right uses these <b>real</b> locks: two tasks each need lock A and lock B.</p>
+    <span class="tag">Q1b · hold and wait</span><span class="tag">Q1c · preemption</span><span class="tag">Q1d · ordering</span>
+    <div class="box"><h3>Do it in this page</h3><ol><li>Run <b>No rule</b>: task 1 takes A then wants B, task 2 takes B then wants A. Watch them wait forever (the page gives up after 3 s).</li><li>Run each fix and read the log: which condition does it break?</li></ol></div>
+    <p class="think"><strong>Think:</strong> with “steal”, task 1 loses its lock in the middle of its work. Is that fine for a printer? For a file?</p>
+  </div>
+  <div class="try"><h3>Two tasks, two locks</h3>
+    <div class="chips" id="lkMode"><button aria-pressed="true" data-m="none">No rule</button><button aria-pressed="false" data-m="order">Same order</button><button aria-pressed="false" data-m="try">All or nothing</button><button aria-pressed="false" data-m="steal">Steal (preempt)</button></div>
+    <div class="row"><button class="btn" id="lkGo">Run</button><span id="lkRes" class="muted"></span></div>
+    <pre id="lkLog" class="log"></pre>
+  </div>
+</section>
+
+<section class="st" hidden data-t="3 · Commit limit" data-s="Promises the OS must keep">
+  <div class="left">
+    <h2>How much memory has your OS promised?</h2>
+    <p class="where">Programs reserve memory before they use it. The OS adds all these promises (the <b>commit charge</b>) and refuses new promises above a limit, even if real memory is still free. Like the banker, it says no to keep every promise safe.</p>
+    <span class="tag">Q2 · avoidance</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="cm"><button class="on" data-v="w">Windows</button><button data-v="m">Mac</button></div>
+      <div data-for="cm" data-v="w"><ol><li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Esc</kbd> → <b>Performance</b> → <b>Memory</b>.</li><li>Read <b>Committed</b>, for example 14.2/23.8 GB: promised so far / the limit.</li><li>Open a big app and watch the first number grow.</li></ol></div>
+      <div data-for="cm" data-v="m" hidden><ol><li>Activity Monitor → <b>Memory</b> tab.</li><li>Read <b>Physical Memory</b>, <b>Memory Used</b> and <b>Swap Used</b> at the bottom: macOS promises memory using swap as the reserve.</li></ol></div>
+    </div>
+    <p class="think"><strong>Think:</strong> the OS refuses a request while real memory is free. Is that a waste? What does the banker's algorithm gain by doing the same?</p>
+  </div>
+  <div class="try"><h3>The banker with your numbers</h3>
+    <p class="note" style="margin-top:0">Write one app per line: <code>name, GB promised now, GB it may need at most</code>.</p>
+    <div class="row"><label for="cmTot">Commit limit (GB)</label><input id="cmTot" type="number" class="mono-in" value="16" style="width:5em"></div>
+    <textarea id="cmIn" rows="4" class="ta">Chrome, 4, 7
+Teams, 2, 3
+Game, 5, 9</textarea>
+    <div class="row"><button class="btn" id="cmGo">Can every app finish?</button></div>
+    <div id="cmOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="4 · End task" data-s="Choose the right victim">
+  <div class="left">
+    <h2>Which program would you close?</h2>
+    <p class="where">When everything freezes, you choose a program to close in Task Manager. The OS uses the same 4 questions to choose a deadlock victim: importance, work already done, data being modified, others depending on it.</p>
+    <span class="tag">Q4 · recovery</span>
+    <div class="box"><h3>Do it on your computer</h3>
+      <div class="os" data-os="et"><button class="on" data-v="w">Windows</button><button data-v="m">Mac</button></div>
+      <div data-for="et" data-v="w"><ol><li>Task Manager → <b>Details</b>. Right-click a column title → <b>Select columns</b> → tick <b>Base priority</b> and <b>CPU time</b>.</li><li>Look at 3 of your apps: priority, CPU time used, is one saving a file? does another app need it?</li><li>Fill the table on the right.</li></ol></div>
+      <div data-for="et" data-v="m" hidden><ol><li>Activity Monitor → CPU tab → View → Columns: tick <b>CPU Time</b>.</li><li>Look at 3 of your apps and fill the table on the right.</li></ol></div>
+    </div>
+    <p class="think"><strong>Think:</strong> why is closing the app that is saving a file the worst choice, even if it is the newest one?</p>
+  </div>
+  <div class="try"><h3>Your victim</h3>
+    <div class="scroll"><table class="t" id="vtT"></table></div>
+    <div class="row"><button class="btn" id="vtGo">Choose</button></div>
+    <div id="vtOut"></div>
+  </div>
+</section>
+
+<section class="st" hidden data-t="5 · Starved task" data-s="Your browser can starve a task">
+  <div class="left">
+    <h2>A task that keeps being overtaken</h2>
+    <p class="where">Your browser runs small jobs in two queues. “Urgent” jobs (microtasks) always run before normal jobs (timers). If urgent jobs keep adding more urgent jobs, a normal job waits and waits: <b>starvation</b>, while the page is busy and not deadlocked.</p>
+    <span class="tag">Q5 · starvation</span>
+    <div class="box"><h3>Do it in this page</h3><ol><li>Press <b>Greedy</b>: a normal job is scheduled “in 0 ms”, then urgent jobs flood the queue for 1.5 s.</li><li>Press <b>Fair</b>: the same work, but each piece lets others pass (it yields).</li><li>Compare how late the normal job ran.</li></ol></div>
+    <p class="think"><strong>Think:</strong> the fair version is like aging: the waiting job gets its turn after a while. What does the OS measure to decide when?</p>
+  </div>
+  <div class="try"><h3>Measure the waiting</h3>
+    <div class="row"><button class="btn" id="svG">Greedy</button><button class="btn ghost" id="svF">Fair</button></div>
+    <div id="svOut"></div>
+  </div>
+</section>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ST=$$('.st');
+$('#nav').innerHTML=ST.map((s,i)=>`<button role="tab" aria-selected="${i===0}" data-i="${i}"><b>${s.dataset.t}</b><span>${s.dataset.s}</span></button>`).join('');
+function show(i,scroll){ ST.forEach((s,k)=>s.hidden=k!==i); $$('[data-i]').forEach(b=>b.setAttribute('aria-selected',+b.dataset.i===i));
+  $('#pager').innerHTML=(i>0?`<button class="btn ghost" id="pv">Previous: ${ST[i-1].dataset.t}</button>`:'<span></span>')+(i<ST.length-1?`<button class="btn" id="nx">Next: ${ST[i+1].dataset.t}</button>`:'');
+  if(i>0) $('#pv').onclick=()=>show(i-1,true); if(i<ST.length-1) $('#nx').onclick=()=>show(i+1,true);
+  if(scroll){const top=$('#pager').getBoundingClientRect().top+scrollY-$('nav').offsetHeight-10; if(scrollY>top) scrollTo({top});} }
+$$('[data-i]').forEach(b=>b.onclick=()=>show(+b.dataset.i,true)); show(0,false);
+$$('[data-os]').forEach(g=>g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); $$(`[data-for="${g.dataset.os}"]`).forEach(o=>o.hidden=o.dataset.v!==b.dataset.v); }));
+$$('.copy').forEach(b=>b.onclick=()=>{});
+const escH=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// 1 spool
+$('#spGo').onclick=()=>{const cap=Math.max(1,+$('#spCap').value||1);const jobs=$('#spJobs').value.split(/[,\s]+/).map(Number).filter(x=>x>0);if(!jobs.length)return;
+  const w=jobs.map(()=>0);let used=0,t=0;const steps=[];
+  while(w.some((x,i)=>x<jobs[i])&&t<200){t++;let moved=false;for(let i=0;i<jobs.length;i++){if(w[i]<jobs[i]&&used<cap){w[i]++;used++;moved=true}}if(!moved)break}
+  const done=w.map((x,i)=>x>=jobs[i]);const stuck=!done.some(Boolean)&&w.some((x,i)=>x<jobs[i]);
+  $('#spOut').innerHTML=`<div class="bars">${jobs.map((j,i)=>`<div class="br"><span>Job ${i+1}</span><i><em style="width:${w[i]/j*100}%"></em></i><b>${w[i]}/${j}</b></div>`).join('')}<div class="br"><span>Spool</span><i><em style="width:${Math.min(100,used/cap*100)}%;background:${used>=cap?'var(--bad)':'var(--on)'}"></em></i><b>${used}/${cap}</b></div></div>`+
+   `<p class="note">${stuck?`<b>Stuck.</b> The spool is full and no job is completely written, so the printer cannot start any job and free space: a <b>spool deadlock</b>. Spooling removes mutual exclusion on the printer, not the limit of the disk.`:done.every(Boolean)?'<b>Fine.</b> Every job fits in the spool: the programs never wait for the printer.':`<b>Fine, but slower.</b> ${done.filter(Boolean).length} job(s) are complete: the printer prints them and frees space for the others.`}</p>`};
+$('#spGo').onclick();
+// 2 locks
+let lkM='none';$$('#lkMode button').forEach(b=>b.onclick=()=>{lkM=b.dataset.m;$$('#lkMode button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+$('#lkGo').onclick=async()=>{const log=$('#lkLog');log.textContent='';const t0=performance.now();const L=s=>{log.textContent+=`${((performance.now()-t0)/1000).toFixed(2)}s  ${s}\n`};
+  if(!navigator.locks){$('#lkRes').textContent='This browser has no navigator.locks. Try Chrome, Edge, Firefox or Safari 15.4+.';return}
+  $('#lkGo').disabled=true;$('#lkRes').textContent='running…';const id=Math.random().toString(36).slice(2);const A='A-'+id,B='B-'+id;const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const ac=new AbortController();const timeout=setTimeout(()=>ac.abort(),3000);let result='';
+  const work=async(name,first,second,opts={})=>{
+    if(lkM==='try'){for(let k=0;k<6;k++){const got=await navigator.locks.request(first,{ifAvailable:true},async l1=>{if(!l1)return false;return navigator.locks.request(second,{ifAvailable:true},async l2=>{if(!l2){L(`${name}: got ${first[0]}, ${second[0]} busy → gives ${first[0]} back (holds nothing while waiting)`);return false}L(`${name}: has both, works`);await sleep(300);L(`${name}: done, releases both`);return true})});if(got)return 'ok';await sleep(150+Math.random()*200)}return 'gave up'}
+    return navigator.locks.request(first,{signal:ac.signal,...opts},async()=>{L(`${name}: takes ${first[0]}`);await sleep(200);L(`${name}: wants ${second[0]}…`);
+      return navigator.locks.request(second,{signal:ac.signal,steal:opts.stealSecond||false},async()=>{L(`${name}: has both, works`);await sleep(300);L(`${name}: done, releases both`);return 'ok'})}).catch(e=>{if(e.name==='AbortError'){L(`${name}: still waiting after 3 s → gave up`);return 'stuck'}L(`${name}: lost its lock (${e.name}): its work is wasted`);return 'lost'})};
+  let r;
+  if(lkM==='none')r=await Promise.all([work('Task 1',A,B),work('Task 2',B,A)]);
+  if(lkM==='order')r=await Promise.all([work('Task 1',A,B),work('Task 2',A,B)]);
+  if(lkM==='try')r=await Promise.all([work('Task 1',A,B),work('Task 2',B,A)]);
+  if(lkM==='steal'){let lost=false;
+    const p1=navigator.locks.request(A,async()=>{L('Task 1: takes A and starts a long job (1 s)');await sleep(1000);L(lost?'Task 1: its code ends, but it had lost A: the result cannot be trusted':'Task 1: done');return 'ok'}).catch(()=>{lost=true;L('Task 1: lock A was taken away by force in the middle of its job: that work is wasted');return 'lost'});
+    const p2=sleep(250).then(()=>navigator.locks.request(A,{steal:true},async()=>{L('Task 2: steals A from task 1 and works');await sleep(300);L('Task 2: done, releases A');return 'ok'}));
+    r=await Promise.all([p1,p2]);await sleep(800)}
+  clearTimeout(timeout);$('#lkGo').disabled=false;
+  const msg={none:r.includes('stuck')?'Deadlock: each task holds one lock and waits for the other.':'They were lucky this time: run again.',order:'No deadlock: both ask A before B, a circle cannot form (circular wait broken).',try:'No deadlock: a task that cannot get both gives back what it has (hold and wait broken). Price: retries, wasted time.',steal:'No deadlock: task 2 took lock A by force (no preemption broken). Price: task 1 lost its lock in the middle of its work.'};
+  $('#lkRes').innerHTML=`<b>${msg[lkM]}</b>`};
+// 3 commit
+$('#cmGo').onclick=()=>{const tot=+$('#cmTot').value||0;const rows=$('#cmIn').value.split('\n').map(l=>l.split(',').map(s=>s.trim())).filter(r=>r.length>=3&&r[0]);
+  const A=rows.map(r=>({n:r[0],a:+r[1]||0,m:+r[2]||0}));const bad=A.find(x=>x.a>x.m);if(bad){$('#cmOut').innerHTML=`<p class="note">${escH(bad.n)} uses more than its maximum.</p>`;return}
+  let av=tot-A.reduce((s,x)=>s+x.a,0);if(av<0){$('#cmOut').innerHTML='<p class="note">More promised than the limit: impossible.</p>';return}
+  const done=A.map(()=>false),lines=[`Available = ${tot} − ${A.reduce((s,x)=>s+x.a,0)} = <b>${+av.toFixed(2)} GB</b>`];
+  for(;;){const i=A.findIndex((x,i)=>!done[i]&&x.m-x.a<=av+1e-9);if(i<0)break;done[i]=true;const x=A[i];lines.push(`${escH(x.n)} needs ${+(x.m-x.a).toFixed(2)} ≤ ${+av.toFixed(2)} → finishes, gives back ${x.a} → available ${+(av+x.a).toFixed(2)}`);av+=x.a}
+  const ok=done.every(Boolean);$('#cmOut').innerHTML=`<ol class="note">${lines.map(l=>`<li>${l}</li>`).join('')}</ol><p class="note"><b>${ok?'Safe':'Unsafe'}.</b> ${ok?'There is an order in which every app can reach its maximum and finish.':'If all apps ask for their maximum, some can never finish. A banker would refuse the last promise.'}</p>`};
+$('#cmGo').onclick();
+// 4 victim
+let VT=[['Browser',2,'40 min','No',1],['Video editor',2,'55 min','Yes',0],['Music app',3,'5 min','No',0]];
+function vtDraw(){$('#vtT').innerHTML='<tr><th>App</th><th>Priority (1 high)</th><th>CPU time</th><th>Saving data?</th><th>Apps that need it</th></tr>'+VT.map((r,i)=>`<tr>${r.map((c,j)=>`<td><input class="mono-in" data-vt="${i}|${j}" value="${escH(c)}" style="width:${j===0?'8em':'5em'}"></td>`).join('')}</tr>`).join('');
+  $$('[data-vt]').forEach(x=>x.onchange=()=>{const [i,j]=x.dataset.vt.split('|').map(Number);VT[i][j]=x.value})}
+const mins=s=>{const m=String(s).match(/([\d.]+)\s*(h|min|m|s)?/i);if(!m)return 0;const v=+m[1],u=(m[2]||'min').toLowerCase();return u==='h'?v*60:u==='s'?v/60:v};
+$('#vtGo').onclick=()=>{const sc=VT.map(r=>{const why=[];if(+r[1]===1)why.push('highest priority');if(/^y/i.test(r[3]))why.push('it is saving data');if(+r[4]>0)why.push(`${r[4]} app(s) need it`);return {n:r[0],why,cpu:mins(r[2])}});
+  const maxc=Math.max(...sc.map(s=>s.cpu));sc.forEach(s=>{if(s.cpu===maxc&&sc.length>1)s.why.push('it has used the most CPU time')});
+  const best=[...sc].sort((a,b)=>a.why.length-b.why.length||a.cpu-b.cpu)[0];
+  $('#vtOut').innerHTML=`<p class="note"><b>Close: ${escH(best.n)}.</b> ${best.why.length?'It still has: '+best.why.join(', ')+', but fewer reasons to keep it than the others.':'No reason to protect it.'}</p><ul class="note">${sc.filter(s=>s!==best).map(s=>`<li>${escH(s.n)}: ${s.why.join(', ')||'also possible'}.</li>`).join('')}</ul>`};
+vtDraw();
+// 5 starvation
+async function sv(fair){$('#svG').disabled=$('#svF').disabled=true;const t0=performance.now();let late=null;setTimeout(()=>{late=performance.now()-t0},0);let pieces=0;
+  if(!fair){await new Promise(res=>{const go=()=>{const s=performance.now();while(performance.now()-s<2){}pieces++;if(performance.now()-t0<1500)queueMicrotask(go);else res()};queueMicrotask(go)})}
+  else{await new Promise(res=>{const go=()=>{const s=performance.now();while(performance.now()-s<2){}pieces++;if(performance.now()-t0<1500)setTimeout(go,0);else res()};setTimeout(go,0)})}
+  await new Promise(r=>setTimeout(r,20));$('#svG').disabled=$('#svF').disabled=false;
+  $('#svOut').innerHTML+=`<div class="note"><b>${fair?'Fair':'Greedy'}:</b> the normal job asked to run “now” and ran after <b>${late.toFixed(0)} ms</b>. ${pieces} pieces of urgent work were done. ${fair?'It passed almost at once: everybody takes turns.':'It waited for the whole flood: starvation, while the page was busy, not stuck.'}</div>`}
+$('#svG').onclick=()=>sv(false);$('#svF').onclick=()=>sv(true);
+
+</script>
+</body>
+</html>
+
+</body></html>
